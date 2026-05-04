@@ -1,0 +1,9 @@
+FloatDeck is an Android live wallpaper that uses your device's gyroscope/accelerometer sensors to create a 3D parallax depth effect with floating character portraits.
+
+Features:
+• Gyroscope-based 3D parallax effect
+• Import and display character portraits as floating cards
+• Customizable template layouts
+• Lock screen support with smooth transitions
+• Inertia-based physics for natural movement
+• Completely open source, no trackers, no internet permission

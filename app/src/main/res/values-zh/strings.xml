@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FloatDeck</string>
+    <string name="set_as_live_wallpaper">设为动态壁纸</string>
+    <string name="template_title">模板</string>
+    <string name="imported_templates">已导入的模板</string>
+    <string name="delete">删除</string>
+    <string name="portrait_effect">立绘特效</string>
+    <string name="effect_none">无</string>
+    <string name="effect_ice">碎碎冰</string>
+    <string name="effect_holo">炫彩</string>
+    <string name="import_remote_template">导入远程模板</string>
+    <string name="import_remote_desc">输入 ZIP 包 URL，从远程下载并导入模板</string>
+    <string name="zip_url_label">ZIP 包 URL</string>
+    <string name="import_button">导入</string>
+    <string name="local_import">本地导入</string>
+    <string name="zip_file">ZIP 文件</string>
+    <string name="directory">目录</string>
+    <string name="import_success">模板 %s 导入成功</string>
+    <string name="error_enter_url">请输入 URL</string>
+    <string name="error_import_failed">导入失败</string>
+    <string name="error_cannot_read_file">无法读取文件</string>
+    <string name="error_file_not_found">文件不存在</string>
+    <string name="error_file_too_large">文件过大（最大 50MB）</string>
+    <string name="error_dir_not_found">目录不存在</string>
+    <string name="error_url_empty">URL 不能为空</string>
+    <string name="error_url_invalid">URL 格式无效</string>
+    <string name="error_unsupported_protocol">仅支持 HTTP/HTTPS 协议</string>
+    <string name="error_download_empty">下载的文件为空</string>
+    <string name="error_download_failed">下载失败，请检查网络连接</string>
+    <string name="error_template_exists">模板 \"%s\" 已存在，是否覆盖？</string>
+    <string name="error_invalid_zip_path">ZIP 包含非法路径: %s</string>
+    <string name="error_zip_structure">ZIP 结构错误：文件必须在子文件夹中（如 my_template/template.json）</string>
+    <string name="error_unsupported_file_type">包含不支持的文件类型：%s（仅支持 png/jpg/webp/json）</string>
+    <string name="error_file_too_large_single">单个文件过大：%s（最大 10MB）</string>
+    <string name="error_json_invalid">template.json 格式无效: %s</string>
+    <string name="error_json_missing_id">template.json 缺少 id 字段</string>
+    <string name="error_json_missing_wallpaper">template.json 缺少 wallpaper 字段</string>
+    <string name="error_json_missing_portraits">template.json 缺少 portraits 字段</string>
+    <string name="error_id_invalid">模板 ID 只能包含字母、数字、下划线和连字符</string>
+    <string name="error_json_not_found">ZIP 中未找到 template.json</string>
+    <string name="error_missing_wallpaper">缺少壁纸文件：%s</string>
+    <string name="error_missing_portrait">缺少立绘文件：%s</string>
+    <string name="error_dir_json_not_found">目录中未找到 template.json</string>
+    <string name="error_dir_json_invalid">template.json 格式无效</string>
+</resources>

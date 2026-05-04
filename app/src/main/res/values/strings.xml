@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FloatDeck</string>
+    <string name="wallpaper_description">Parallax wallpaper with floating character portraits</string>
+    <string name="set_as_live_wallpaper">Set as Live Wallpaper</string>
+    <string name="template_title">Template</string>
+    <string name="imported_templates">Imported Templates</string>
+    <string name="delete">Delete</string>
+    <string name="portrait_effect">Portrait Effect</string>
+    <string name="effect_none">None</string>
+    <string name="effect_ice">Ice</string>
+    <string name="effect_holo">Holographic</string>
+    <string name="import_remote_template">Import Remote Template</string>
+    <string name="import_remote_desc">Enter ZIP URL to download and import template</string>
+    <string name="zip_url_label">ZIP URL</string>
+    <string name="import_button">Import</string>
+    <string name="local_import">Local Import</string>
+    <string name="zip_file">ZIP File</string>
+    <string name="directory">Directory</string>
+    <string name="import_success">Template %s imported successfully</string>
+    <string name="error_enter_url">Please enter URL</string>
+    <string name="error_import_failed">Import failed</string>
+    <string name="error_cannot_read_file">Cannot read file</string>
+    <string name="error_file_not_found">File not found</string>
+    <string name="error_file_too_large">File too large (max 50MB)</string>
+    <string name="error_dir_not_found">Directory not found</string>
+    <string name="error_url_empty">URL cannot be empty</string>
+    <string name="error_url_invalid">Invalid URL format</string>
+    <string name="error_unsupported_protocol">Only HTTP/HTTPS protocols are supported</string>
+    <string name="error_download_empty">Downloaded file is empty</string>
+    <string name="error_download_failed">Download failed, please check network connection</string>
+    <string name="error_template_exists">Template \"%s\" already exists, overwrite?</string>
+    <string name="error_invalid_zip_path">ZIP contains invalid path: %s</string>
+    <string name="error_zip_structure">ZIP structure error: files must be in a subfolder (e.g., my_template/template.json)</string>
+    <string name="error_unsupported_file_type">Unsupported file type: %s (only png/jpg/webp/json supported)</string>
+    <string name="error_file_too_large_single">File too large: %s (max 10MB)</string>
+    <string name="error_json_invalid">template.json format is invalid: %s</string>
+    <string name="error_json_missing_id">template.json is missing id field</string>
+    <string name="error_json_missing_wallpaper">template.json is missing wallpaper field</string>
+    <string name="error_json_missing_portraits">template.json is missing portraits field</string>
+    <string name="error_id_invalid">Template ID can only contain letters, numbers, underscores, and hyphens</string>
+    <string name="error_json_not_found">template.json not found in ZIP</string>
+    <string name="error_missing_wallpaper">Missing wallpaper file: %s</string>
+    <string name="error_missing_portrait">Missing portrait file: %s</string>
+    <string name="error_dir_json_not_found">template.json not found in directory</string>
+    <string name="error_dir_json_invalid">template.json format is invalid</string>
+</resources>

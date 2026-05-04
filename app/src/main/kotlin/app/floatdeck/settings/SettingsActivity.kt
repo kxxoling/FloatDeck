@@ -1,0 +1,450 @@
+@file:Suppress("ktlint:standard:function-naming")
+
+package app.floatdeck.settings
+
+import android.app.WallpaperManager
+import android.content.ComponentName
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.provider.DocumentsContract
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import app.floatdeck.R
+import app.floatdeck.BuildConfig
+import app.floatdeck.data.PortraitEffect
+import app.floatdeck.data.RemoteTemplateLoader
+import app.floatdeck.data.SettingsRepository
+import app.floatdeck.data.TemplateDef
+import app.floatdeck.data.TemplateLoadException
+import app.floatdeck.service.FloatDeckWallpaperService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+
+/** 设置页 Activity：选择模板并将 FloatDeck 设为动态壁纸。 */
+class SettingsActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val repo = SettingsRepository(this)
+
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    SettingsScreen(
+                        repo = repo,
+                        onSetWallpaper = { setAsWallpaper() },
+                    )
+                }
+            }
+        }
+    }
+
+    /** 跳转系统动态壁纸选择器，预选 FloatDeck。 */
+    private fun setAsWallpaper() {
+        val intent =
+            Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                putExtra(
+                    WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    ComponentName(
+                        this@SettingsActivity,
+                        FloatDeckWallpaperService::class.java,
+                    ),
+                )
+            }
+        startActivity(intent)
+    }
+}
+
+/** 设置页 Compose 界面：壁纸设置按钮 + 模板单选列表 + 远程模板导入。 */
+@Suppress("FunctionNaming")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    repo: SettingsRepository,
+    onSetWallpaper: () -> Unit,
+) {
+    val context = LocalContext.current
+    var templateId by remember { mutableStateOf("") }
+    var selectedEffect by remember { mutableStateOf(PortraitEffect.NONE) }
+    var remoteTemplates by remember { mutableStateOf<List<TemplateDef>>(emptyList()) }
+    var urlText by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    val scope = remember { CoroutineScope(Dispatchers.Main) }
+    val remoteLoader = remember { RemoteTemplateLoader(context) }
+
+    // 启动时从 DataStore 读取已保存的模板 ID
+    remember {
+        scope.launch {
+            repo.templateId.collect { templateId = it }
+        }
+    }
+    remember {
+        scope.launch {
+            repo.portraitEffect.collect { selectedEffect = it }
+        }
+    }
+
+    // 加载已导入的远程模板
+    fun refreshRemoteTemplates() {
+        remoteTemplates = remoteLoader.getImportedTemplates()
+    }
+
+    remember { refreshRemoteTemplates() }
+
+    fun importTemplate() {
+        if (urlText.isBlank()) {
+            errorMessage = context.getString(R.string.error_enter_url)
+            return
+        }
+        isLoading = true
+        errorMessage = ""
+        scope.launch {
+            try {
+                val id = remoteLoader.importFromUrl(urlText)
+                refreshRemoteTemplates()
+                urlText = ""
+                templateId = id
+                repo.setTemplate(id)
+                Toast.makeText(context, context.getString(R.string.import_success, id), Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                errorMessage = e.message ?: context.getString(R.string.error_import_failed)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun importLocalZip(uri: Uri) {
+        isLoading = true
+        errorMessage = ""
+        scope.launch {
+            try {
+                val tempFile = File(context.cacheDir, "local_import.zip")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                } ?: throw TemplateLoadException(context.getString(R.string.error_cannot_read_file))
+                val id = remoteLoader.importFromZip(tempFile)
+                tempFile.delete()
+                refreshRemoteTemplates()
+                templateId = id
+                repo.setTemplate(id)
+                Toast.makeText(context, context.getString(R.string.import_success, id), Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                android.util.Log.e("FloatDeck", "Local ZIP import failed", e)
+                errorMessage = e.message ?: context.getString(R.string.error_import_failed)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun importLocalDirectory(uri: Uri) {
+        isLoading = true
+        errorMessage = ""
+        scope.launch {
+            try {
+                val tempDir = File(context.cacheDir, "local_import_dir")
+                tempDir.deleteRecursively()
+                tempDir.mkdirs()
+                val docId = DocumentsContract.getTreeDocumentId(uri)
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, docId)
+                val resolver = context.contentResolver
+                val allowedExt = setOf("png", "jpg", "jpeg", "webp", "json")
+                resolver.query(childrenUri, null, null, null, null)?.use { cursor ->
+                    val nameCol = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    val uriCol = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                    while (cursor.moveToNext()) {
+                        val name = cursor.getString(nameCol)
+                        val ext = name.substringAfterLast(".", "").lowercase()
+                        if (ext !in allowedExt) continue
+                        val childId = cursor.getString(uriCol)
+                        val childUri = DocumentsContract.buildDocumentUriUsingTree(uri, childId)
+                        resolver.openInputStream(childUri)?.use { input ->
+                            FileOutputStream(File(tempDir, name)).use { output -> input.copyTo(output) }
+                        }
+                    }
+                }
+                val id = remoteLoader.importFromDirectory(tempDir)
+                tempDir.deleteRecursively()
+                refreshRemoteTemplates()
+                templateId = id
+                repo.setTemplate(id)
+                Toast.makeText(context, context.getString(R.string.import_success, id), Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                android.util.Log.e("FloatDeck", "Local directory import failed", e)
+                errorMessage = e.message ?: context.getString(R.string.error_import_failed)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    val zipPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        uri?.let { importLocalZip(it) }
+    }
+
+    val dirPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri: Uri? ->
+        uri?.let { importLocalDirectory(it) }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("FloatDeck") })
+        },
+    ) { padding ->
+        // Scan built-in templates from assets
+        val assetTemplates = remember {
+            context.assets.list("templates")
+                ?.filterNotNull()
+                ?.mapNotNull { dir ->
+                    val json = runCatching {
+                        context.assets.open("templates/$dir/template.json")
+                            .bufferedReader().use { it.readText() }
+                    }.getOrNull() ?: return@mapNotNull null
+                    val jsonObj = runCatching { org.json.JSONObject(json) }.getOrNull() ?: return@mapNotNull null
+                    dir to jsonObj.optString("name", dir)
+                } ?: emptyList()
+        }
+
+        LazyColumn(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Button(
+                    onClick = onSetWallpaper,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.set_as_live_wallpaper))
+                }
+            }
+
+            item {
+                Text(stringResource(R.string.template_title), style = MaterialTheme.typography.titleMedium)
+            }
+
+            items(assetTemplates) { (id, name) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    RadioButton(
+                        selected = templateId == id,
+                        onClick = {
+                            scope.launch { repo.setTemplate(id) }
+                        },
+                    )
+                    Text(name, modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+
+            // 已导入的远程模板列表
+            if (remoteTemplates.isNotEmpty()) {
+                item {
+                    HorizontalDivider()
+                    Text(stringResource(R.string.imported_templates), style = MaterialTheme.typography.titleSmall)
+                }
+
+                items(remoteTemplates) { tmpl ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        RadioButton(
+                            selected = templateId == tmpl.id,
+                            onClick = {
+                                scope.launch { repo.setTemplate(tmpl.id) }
+                            },
+                        )
+                        Text(
+                            tmpl.name,
+                            modifier = Modifier.weight(1f).padding(start = 8.dp),
+                        )
+                        TextButton(onClick = {
+                            remoteLoader.deleteTemplate(tmpl.id)
+                            refreshRemoteTemplates()
+                            if (templateId == tmpl.id) {
+                                scope.launch { repo.setTemplate("") }
+                            }
+                        }) {
+                            Text(stringResource(R.string.delete))
+                        }
+                    }
+                }
+            }
+
+            // 立绘特效选择
+            item {
+                HorizontalDivider()
+                Text(stringResource(R.string.portrait_effect), style = MaterialTheme.typography.titleMedium)
+            }
+
+            items(PortraitEffect.entries) { effect ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    RadioButton(
+                        selected = selectedEffect == effect,
+                        onClick = {
+                            scope.launch { repo.setPortraitEffect(effect) }
+                        },
+                    )
+                    Text(
+                        stringResource(effect.labelResId),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+
+            item {
+                HorizontalDivider()
+                Text(stringResource(R.string.import_remote_template), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(R.string.import_remote_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            item {
+                Column {
+                    OutlinedTextField(
+                        value = urlText,
+                        onValueChange = { urlText = it },
+                        label = { Text(stringResource(R.string.zip_url_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = !isLoading,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Button(
+                            onClick = { importTemplate() },
+                            enabled = !isLoading,
+                        ) {
+                            Text(stringResource(R.string.import_button))
+                        }
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(start = 16.dp),
+                            )
+                        }
+                    }
+                    if (errorMessage.isNotEmpty()) {
+                        Text(
+                            errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                }
+            }
+
+            item {
+                HorizontalDivider()
+                Text(stringResource(R.string.local_import), style = MaterialTheme.typography.titleSmall)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Button(
+                        onClick = {
+                            zipPickerLauncher.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                ),
+                            )
+                        },
+                        enabled = !isLoading,
+                    ) {
+                        Text(stringResource(R.string.zip_file))
+                    }
+                    Button(
+                        onClick = {
+                            dirPickerLauncher.launch(null)
+                        },
+                        enabled = !isLoading,
+                    ) {
+                        Text(stringResource(R.string.directory))
+                    }
+                }
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+
+            item {
+                HorizontalDivider()
+                Text(
+                    "Assets are placeholders. Replace images in assets/templates/ " +
+                        "with your own.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+}
