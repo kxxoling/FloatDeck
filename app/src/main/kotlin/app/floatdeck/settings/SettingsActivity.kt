@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +56,7 @@ import app.floatdeck.data.RemoteTemplateLoader
 import app.floatdeck.data.SettingsRepository
 import app.floatdeck.data.TemplateDef
 import app.floatdeck.data.TemplateLoadException
+import app.floatdeck.data.UpdateChecker
 import app.floatdeck.service.FloatDeckWallpaperService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -444,6 +448,71 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+
+                // Update check (side-load users only)
+                if (UpdateChecker.shouldCheckForUpdate(context)) {
+                    var updateChecking by remember { mutableStateOf(false) }
+                    var updateAvailable by remember { mutableStateOf<app.floatdeck.data.ReleaseInfo?>(null) }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            updateChecking = true
+                            scope.launch {
+                                val release = UpdateChecker.checkForUpdate()
+                                updateChecking = false
+                                if (release != null) {
+                                    updateAvailable = release
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.already_latest),
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                            }
+                        },
+                        enabled = !updateChecking,
+                    ) {
+                        Text(stringResource(R.string.check_for_updates))
+                    }
+                    if (updateChecking) {
+                        CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
+                    }
+
+                    if (updateAvailable != null) {
+                        AlertDialog(
+                            onDismissRequest = { updateAvailable = null },
+                            title = { Text(stringResource(R.string.update_available)) },
+                            text = {
+                                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                    Text(updateAvailable!!.tagName)
+                                    if (updateAvailable!!.body.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(updateAvailable!!.body)
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(updateAvailable!!.htmlUrl)),
+                                        )
+                                        updateAvailable = null
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.view_release))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { updateAvailable = null }) {
+                                    Text(stringResource(android.R.string.cancel))
+                                }
+                            },
+                        )
+                    }
+                }
             }
         }
     }
