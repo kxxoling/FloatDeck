@@ -437,6 +437,50 @@ fun SettingsScreen(
             item {
                 HorizontalDivider()
                 Text(
+                    stringResource(R.string.crash_logs_title),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                val crashLogs = remember { app.floatdeck.CrashLogCollector.getLogFiles() }
+                if (crashLogs.isEmpty()) {
+                    Text(
+                        stringResource(R.string.no_crash_logs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = {
+                                val intent = app.floatdeck.CrashLogCollector.shareLog(
+                                    context.applicationContext as app.floatdeck.FloatDeckApp,
+                                    crashLogs.first(),
+                                )
+                                context.startActivity(Intent.createChooser(intent, null))
+                            },
+                        ) {
+                            Text(stringResource(R.string.export_crash_log))
+                        }
+                        TextButton(
+                            onClick = {
+                                app.floatdeck.CrashLogCollector.clearLogs()
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.no_crash_logs),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            },
+                        ) {
+                            Text(stringResource(R.string.clear_crash_log))
+                        }
+                    }
+                }
+            }
+
+            item {
+                HorizontalDivider()
+                Text(
                     "Assets are placeholders. Replace images in assets/templates/ " +
                         "with your own.",
                     style = MaterialTheme.typography.bodySmall,
