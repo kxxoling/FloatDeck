@@ -44,4 +44,8 @@
     <string name="error_missing_portrait">Missing portrait file: %s</string>
     <string name="error_dir_json_not_found">template.json not found in directory</string>
     <string name="error_dir_json_invalid">template.json format is invalid</string>
+    <string name="check_for_updates">Check for Updates</string>
+    <string name="already_latest">Already up to date</string>
+    <string name="update_available">Update Available</string>
+    <string name="view_release">View Release</string>
 </resources>
