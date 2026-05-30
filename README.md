@@ -58,6 +58,17 @@ template_name/
 └── portrait_2.webp
 ```
 
+### Example Theme Packs
+
+Download from [Releases](https://github.com/kxxoling/FloatDeck/releases) and import via Remote URL or Local ZIP:
+
+| Theme Pack | Link |
+|---|---|
+| Honkai 3rd: Flame Chasers | [flame_chasers.zip](https://github.com/kxxoling/FloatDeck/releases/download/v0.1.0/flame_chasers.zip) |
+| Honkai: Star Rail - Amphoreus Titans | [hsr_titans.zip](https://github.com/kxxoling/FloatDeck/releases/download/v0.1.0/hsr_titans.zip) |
+
+> **Note:** Honkai 3rd and Honkai: Star Rail assets are copyrighted by miHoYo Co., Ltd.
+
 **Validation rules:**
 - `template.json` is required with valid `id`, `wallpaper`, and `portraits` fields
 - Only `.png`, `.jpg`, `.jpeg`, `.webp` images allowed
