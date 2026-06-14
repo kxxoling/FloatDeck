@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +34,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,6 +59,7 @@ import app.floatdeck.data.RemoteTemplateLoader
 import app.floatdeck.data.SettingsRepository
 import app.floatdeck.data.TemplateDef
 import app.floatdeck.data.TemplateLoadException
+import app.floatdeck.data.UpdateChecker
 import app.floatdeck.service.FloatDeckWallpaperService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -109,6 +116,10 @@ fun SettingsScreen(
     var urlText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var updateChecking by remember { mutableStateOf(false) }
+    var updateAvailable by remember { mutableStateOf<app.floatdeck.data.ReleaseInfo?>(null) }
+    var updateError by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val scope = remember { CoroutineScope(Dispatchers.Main) }
     val remoteLoader = remember { RemoteTemplateLoader(context) }
@@ -233,6 +244,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(title = { Text("FloatDeck") })
         },
@@ -433,17 +445,181 @@ fun SettingsScreen(
             item {
                 HorizontalDivider()
                 Text(
+                    stringResource(R.string.crash_logs_title),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                var crashLogs by remember {
+                    mutableStateOf(app.floatdeck.CrashLogCollector.getLogFiles())
+                }
+                if (crashLogs.isEmpty()) {
+                    Text(
+                        stringResource(R.string.no_crash_logs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val hasLog = crashLogs.isNotEmpty()
+                    val firstLog = crashLogs.firstOrNull()
+                    Button(
+                        onClick = {
+                            firstLog?.let { log ->
+                                val intent = app.floatdeck.CrashLogCollector.shareLog(
+                                    context.applicationContext as app.floatdeck.FloatDeckApp,
+                                    log,
+                                )
+                                context.startActivity(Intent.createChooser(intent, null))
+                            }
+                        },
+                        enabled = hasLog,
+                    ) {
+                        Text(stringResource(R.string.share_crash_log))
+                    }
+                    Button(
+                        onClick = {
+                            firstLog?.let { log ->
+                                val ok = app.floatdeck.CrashLogCollector.saveToDownloads(context, log)
+                                val msg = if (ok) {
+                                    context.getString(R.string.saved_to_downloads, log.name)
+                                } else {
+                                    context.getString(R.string.save_to_downloads_failed)
+                                }
+                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                            }
+                        },
+                        enabled = hasLog,
+                    ) {
+                        Text(stringResource(R.string.save_to_downloads))
+                    }
+                    TextButton(
+                        onClick = {
+                            app.floatdeck.CrashLogCollector.clearLogs()
+                            crashLogs = app.floatdeck.CrashLogCollector.getLogFiles()
+                            scope.launch {
+                                snackbarHostState.showSnackbar(context.getString(R.string.crash_logs_cleared))
+                            }
+                        },
+                        enabled = hasLog,
+                    ) {
+                        Text(stringResource(R.string.clear_crash_log))
+                    }
+                }
+            }
+
+            item {
+                HorizontalDivider()
+                Text(
                     "Assets are placeholders. Replace images in assets/templates/ " +
                         "with your own.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                    "v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        updateChecking = true
+                        scope.launch {
+                            when (val result = UpdateChecker.checkForUpdate()) {
+                                is app.floatdeck.data.UpdateResult.Available -> {
+                                    updateAvailable = result.info
+                                }
+
+                                is app.floatdeck.data.UpdateResult.UpToDate -> {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                context.getString(R.string.already_latest),
+                                            )
+                                        }
+                                    }
+
+                                is app.floatdeck.data.UpdateResult.Error -> {
+                                    val friendly = when {
+                                        result.message.contains("timeout", ignoreCase = true) ->
+                                            context.getString(R.string.update_timeout)
+
+                                        result.message.contains("network", ignoreCase = true) ||
+                                            result.message.contains("connection", ignoreCase = true) ->
+                                            context.getString(R.string.update_network_error)
+
+                                        else -> context.getString(R.string.update_check_failed)
+                                    }
+                                    updateError = "$friendly\n${result.message}"
+                                }
+                            }
+                            updateChecking = false
+                        }
+                    },
+                    enabled = !updateChecking,
+                ) {
+                    Text(stringResource(R.string.check_for_updates))
+                }
+                if (updateChecking) {
+                    CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
+                }
+
+                if (updateAvailable != null) {
+                    AlertDialog(
+                        onDismissRequest = { updateAvailable = null },
+                        title = { Text(stringResource(R.string.update_available)) },
+                        text = {
+                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                Text(updateAvailable!!.tagName)
+                                if (updateAvailable!!.body.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(updateAvailable!!.body)
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(updateAvailable!!.htmlUrl)),
+                                    )
+                                    updateAvailable = null
+                                },
+                            ) {
+                                Text(stringResource(R.string.view_release))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { updateAvailable = null }) {
+                                Text(stringResource(android.R.string.cancel))
+                            }
+                        },
+                    )
+                }
+
+                if (updateError != null) {
+                    AlertDialog(
+                        onDismissRequest = { updateError = null },
+                        title = { Text(stringResource(R.string.update_check_failed)) },
+                        text = { Text(updateError!!) },
+                        confirmButton = {
+                            TextButton(onClick = { updateError = null }) {
+                                Text(stringResource(android.R.string.ok))
+                            }
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = {
+                        context.startActivity(Intent(context, LicenseActivity::class.java))
+                    },
+                ) {
+                    Text(stringResource(R.string.open_source_licenses))
+                }
             }
         }
     }
