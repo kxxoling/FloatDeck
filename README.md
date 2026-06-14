@@ -1,5 +1,8 @@
 # FloatDeck
 
+[![F-Droid](https://img.shields.io/badge/Get%20it%20on%20F--Droid-1976D2?style=for-the-badge&logo=f-droid&logoColor=white)](https://f-droid.org/en/packages/app.floatdeck/)
+[![GitHub Releases](https://img.shields.io/github/v/release/kxxoling/FloatDeck?style=for-the-badge&logo=github)](https://github.com/kxxoling/FloatDeck/releases)
+
 Android live wallpaper with gyroscope parallax effect and floating character portraits.
 
 > **User Guide:** [English](README.md) | [中文](USAGE.zh-CN.md) | [日本語](USAGE.ja-JP.md) | [한국어](USAGE.ko-KR.md)
