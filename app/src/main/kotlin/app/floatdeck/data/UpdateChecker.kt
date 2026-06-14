@@ -59,10 +59,12 @@ object UpdateChecker {
                 connection.connectTimeout = CONNECT_TIMEOUT_MS
                 connection.readTimeout = READ_TIMEOUT_MS
                 connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                connection.setRequestProperty("User-Agent", "FloatDeck-Android/${BuildConfig.VERSION_NAME}")
 
                 val responseCode = connection.responseCode
                 if (responseCode != HttpURLConnection.HTTP_OK) {
-                    return@withContext UpdateResult.Error("HTTP $responseCode")
+                    val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                    return@withContext UpdateResult.Error("HTTP $responseCode: $errorBody")
                 }
 
                 val json = connection.inputStream.bufferedReader().use { it.readText() }

@@ -34,6 +34,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -113,6 +116,10 @@ fun SettingsScreen(
     var urlText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var updateChecking by remember { mutableStateOf(false) }
+    var updateAvailable by remember { mutableStateOf<app.floatdeck.data.ReleaseInfo?>(null) }
+    var updateError by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val scope = remember { CoroutineScope(Dispatchers.Main) }
     val remoteLoader = remember { RemoteTemplateLoader(context) }
@@ -237,6 +244,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(title = { Text("FloatDeck") })
         },
@@ -487,92 +495,108 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                    "v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
 
-                // Update check (side-load users only)
-                if (UpdateChecker.shouldCheckForUpdate(context)) {
-                    var updateChecking by remember { mutableStateOf(false) }
-                    var updateAvailable by remember { mutableStateOf<app.floatdeck.data.ReleaseInfo?>(null) }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            updateChecking = true
-                            scope.launch {
-                                when (val result = UpdateChecker.checkForUpdate()) {
-                                    is app.floatdeck.data.UpdateResult.Available -> {
-                                        updateAvailable = result.info
-                                    }
-
-                                    is app.floatdeck.data.UpdateResult.UpToDate -> {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.already_latest),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                    }
-
-                                    is app.floatdeck.data.UpdateResult.Error -> {
-                                        val msg = when {
-                                            result.message.contains("timeout", ignoreCase = true) ->
-                                                context.getString(R.string.update_timeout)
-
-                                            result.message.contains("network", ignoreCase = true) ||
-                                                result.message.contains("connection", ignoreCase = true) ->
-                                                context.getString(R.string.update_network_error)
-
-                                            else -> context.getString(R.string.update_check_failed)
-                                        }
-                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        updateChecking = true
+                        scope.launch {
+                            when (val result = UpdateChecker.checkForUpdate()) {
+                                is app.floatdeck.data.UpdateResult.Available -> {
+                                    updateAvailable = result.info
                                 }
-                                updateChecking = false
+
+                                is app.floatdeck.data.UpdateResult.UpToDate -> {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                context.getString(R.string.already_latest),
+                                            )
+                                        }
+                                    }
+
+                                is app.floatdeck.data.UpdateResult.Error -> {
+                                    val friendly = when {
+                                        result.message.contains("timeout", ignoreCase = true) ->
+                                            context.getString(R.string.update_timeout)
+
+                                        result.message.contains("network", ignoreCase = true) ||
+                                            result.message.contains("connection", ignoreCase = true) ->
+                                            context.getString(R.string.update_network_error)
+
+                                        else -> context.getString(R.string.update_check_failed)
+                                    }
+                                    updateError = "$friendly\n${result.message}"
+                                }
+                            }
+                            updateChecking = false
+                        }
+                    },
+                    enabled = !updateChecking,
+                ) {
+                    Text(stringResource(R.string.check_for_updates))
+                }
+                if (updateChecking) {
+                    CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
+                }
+
+                if (updateAvailable != null) {
+                    AlertDialog(
+                        onDismissRequest = { updateAvailable = null },
+                        title = { Text(stringResource(R.string.update_available)) },
+                        text = {
+                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                Text(updateAvailable!!.tagName)
+                                if (updateAvailable!!.body.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(updateAvailable!!.body)
+                                }
                             }
                         },
-                        enabled = !updateChecking,
-                    ) {
-                        Text(stringResource(R.string.check_for_updates))
-                    }
-                    if (updateChecking) {
-                        CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
-                    }
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(updateAvailable!!.htmlUrl)),
+                                    )
+                                    updateAvailable = null
+                                },
+                            ) {
+                                Text(stringResource(R.string.view_release))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { updateAvailable = null }) {
+                                Text(stringResource(android.R.string.cancel))
+                            }
+                        },
+                    )
+                }
 
-                    if (updateAvailable != null) {
-                        AlertDialog(
-                            onDismissRequest = { updateAvailable = null },
-                            title = { Text(stringResource(R.string.update_available)) },
-                            text = {
-                                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                                    Text(updateAvailable!!.tagName)
-                                    if (updateAvailable!!.body.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(updateAvailable!!.body)
-                                    }
-                                }
-                            },
-                            confirmButton = {
-                                TextButton(
-                                    onClick = {
-                                        context.startActivity(
-                                            Intent(Intent.ACTION_VIEW, Uri.parse(updateAvailable!!.htmlUrl)),
-                                        )
-                                        updateAvailable = null
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.view_release))
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { updateAvailable = null }) {
-                                    Text(stringResource(android.R.string.cancel))
-                                }
-                            },
-                        )
-                    }
+                if (updateError != null) {
+                    AlertDialog(
+                        onDismissRequest = { updateError = null },
+                        title = { Text(stringResource(R.string.update_check_failed)) },
+                        text = { Text(updateError!!) },
+                        confirmButton = {
+                            TextButton(onClick = { updateError = null }) {
+                                Text(stringResource(android.R.string.ok))
+                            }
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = {
+                        context.startActivity(Intent(context, LicenseActivity::class.java))
+                    },
+                ) {
+                    Text(stringResource(R.string.open_source_licenses))
                 }
             }
         }
