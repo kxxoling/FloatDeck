@@ -48,6 +48,9 @@
     <string name="already_latest">Already up to date</string>
     <string name="update_available">Update Available</string>
     <string name="view_release">View Release</string>
+    <string name="update_check_failed">Update check failed</string>
+    <string name="update_network_error">Network error, please check your connection</string>
+    <string name="update_timeout">Request timeout, please try again later</string>
     <string name="crash_logs_title">Crash Logs</string>
     <string name="export_crash_log">Export Crash Log</string>
     <string name="clear_crash_log">Clear All Logs</string>

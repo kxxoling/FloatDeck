@@ -94,10 +94,12 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.coil.compose)
     implementation(libs.coil.android)
+    implementation(libs.kotlin.semver)
 
     testImplementation(libs.junit5.api)
     testRuntimeOnly(libs.junit5.engine)
     testRuntimeOnly(libs.junit5.launcher)
+    testImplementation(libs.junit5.params)
     testImplementation(libs.mockk)
 
     androidTestImplementation(libs.compose.test)

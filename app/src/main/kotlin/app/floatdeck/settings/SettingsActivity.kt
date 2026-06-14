@@ -503,17 +503,34 @@ fun SettingsScreen(
                         onClick = {
                             updateChecking = true
                             scope.launch {
-                                val release = UpdateChecker.checkForUpdate()
-                                updateChecking = false
-                                if (release != null) {
-                                    updateAvailable = release
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.already_latest),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                                when (val result = UpdateChecker.checkForUpdate()) {
+                                    is app.floatdeck.data.UpdateResult.Available -> {
+                                        updateAvailable = result.info
+                                    }
+
+                                    is app.floatdeck.data.UpdateResult.UpToDate -> {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.already_latest),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+
+                                    is app.floatdeck.data.UpdateResult.Error -> {
+                                        val msg = when {
+                                            result.message.contains("timeout", ignoreCase = true) ->
+                                                context.getString(R.string.update_timeout)
+
+                                            result.message.contains("network", ignoreCase = true) ||
+                                                result.message.contains("connection", ignoreCase = true) ->
+                                                context.getString(R.string.update_network_error)
+
+                                            else -> context.getString(R.string.update_check_failed)
+                                        }
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
                                 }
+                                updateChecking = false
                             }
                         },
                         enabled = !updateChecking,

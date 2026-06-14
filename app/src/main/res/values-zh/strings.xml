@@ -43,4 +43,11 @@
     <string name="error_missing_portrait">缺少立绘文件：%s</string>
     <string name="error_dir_json_not_found">目录中未找到 template.json</string>
     <string name="error_dir_json_invalid">template.json 格式无效</string>
+    <string name="check_for_updates">检查更新</string>
+    <string name="already_latest">已是最新版本</string>
+    <string name="update_available">发现新版本</string>
+    <string name="view_release">查看发布页</string>
+    <string name="update_check_failed">检查更新失败</string>
+    <string name="update_network_error">网络错误，请检查网络连接</string>
+    <string name="update_timeout">请求超时，请稍后重试</string>
 </resources>
