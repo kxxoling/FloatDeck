@@ -2,6 +2,8 @@
 
 Android live wallpaper with gyroscope parallax effect and floating character portraits.
 
+> **User Guide:** [English](README.md) | [中文](USAGE.zh-CN.md) | [日本語](USAGE.ja-JP.md) | [한국어](USAGE.ko-KR.md)
+
 ## Project Structure
 ```
 app/src/main/
