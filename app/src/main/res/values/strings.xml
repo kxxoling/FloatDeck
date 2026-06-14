@@ -44,6 +44,10 @@
     <string name="error_missing_portrait">Missing portrait file: %s</string>
     <string name="error_dir_json_not_found">template.json not found in directory</string>
     <string name="error_dir_json_invalid">template.json format is invalid</string>
+    <string name="crash_logs_title">Crash Logs</string>
+    <string name="export_crash_log">Export Crash Log</string>
+    <string name="clear_crash_log">Clear All Logs</string>
+    <string name="no_crash_logs">No crash logs</string>
     <string name="check_for_updates">Check for Updates</string>
     <string name="already_latest">Already up to date</string>
     <string name="update_available">Update Available</string>
@@ -51,8 +55,6 @@
     <string name="update_check_failed">Update check failed</string>
     <string name="update_network_error">Network error, please check your connection</string>
     <string name="update_timeout">Request timeout, please try again later</string>
-    <string name="crash_logs_title">Crash Logs</string>
-    <string name="export_crash_log">Export Crash Log</string>
-    <string name="clear_crash_log">Clear All Logs</string>
-    <string name="no_crash_logs">No crash logs</string>
+    <string name="open_source_licenses">Open Source Licenses</string>
+    <string name="back">Back</string>
 </resources>
