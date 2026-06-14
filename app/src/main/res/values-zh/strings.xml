@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FloatDeck</string>
+    <string name="wallpaper_description">带有浮动角色立绘的视差壁纸</string>
     <string name="set_as_live_wallpaper">设为动态壁纸</string>
     <string name="template_title">模板</string>
     <string name="imported_templates">已导入的模板</string>
@@ -43,6 +44,10 @@
     <string name="error_missing_portrait">缺少立绘文件：%s</string>
     <string name="error_dir_json_not_found">目录中未找到 template.json</string>
     <string name="error_dir_json_invalid">template.json 格式无效</string>
+    <string name="crash_logs_title">崩溃日志</string>
+    <string name="export_crash_log">导出崩溃日志</string>
+    <string name="clear_crash_log">清除全部日志</string>
+    <string name="no_crash_logs">暂无崩溃日志</string>
     <string name="check_for_updates">检查更新</string>
     <string name="already_latest">已是最新版本</string>
     <string name="update_available">发现新版本</string>
@@ -50,4 +55,6 @@
     <string name="update_check_failed">检查更新失败</string>
     <string name="update_network_error">网络错误，请检查网络连接</string>
     <string name="update_timeout">请求超时，请稍后重试</string>
+    <string name="open_source_licenses">开源许可</string>
+    <string name="back">返回</string>
 </resources>
