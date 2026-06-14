@@ -1,6 +1,11 @@
 package app.floatdeck
 
+import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileWriter
@@ -37,16 +42,54 @@ object CrashLogCollector {
 
     /** Delete all log files. */
     fun clearLogs() {
-        logDir.listFiles()?.forEach { it.delete() }
+        logDir.listFiles()?.forEach { file ->
+            val deleted = file.delete()
+            if (!deleted) {
+                android.util.Log.w("CrashLogCollector", "Failed to delete ${file.name}")
+            }
+        }
     }
 
     /** Share a log file via FileProvider. */
     fun shareLog(app: FloatDeckApp, file: File): Intent {
         val uri = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
         return Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
+            type = "*/*"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    /** Save a log file to the public Downloads directory. */
+    fun saveToDownloads(context: Context, file: File): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Android 10+: use MediaStore.Downloads (no permission needed)
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+                val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                val uri = resolver.insert(collection, values) ?: return false
+                resolver.openOutputStream(uri)?.use { output ->
+                    file.inputStream().use { input -> input.copyTo(output) }
+                } ?: return false
+                true
+            } else {
+                // Android 9 and below: legacy direct file write
+                @Suppress("DEPRECATION")
+                val downloadsDir =
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                val destFile = File(downloadsDir, file.name)
+                file.copyTo(destFile, overwrite = true)
+                true
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CrashLogCollector", "Failed to save to downloads", e)
+            false
         }
     }
 
@@ -69,7 +112,8 @@ object CrashLogCollector {
     private fun trimOldLogs() {
         val files = logDir.listFiles()?.sortedBy { it.lastModified() }.orEmpty()
         while (files.size >= MAX_LOG_FILES) {
-            files.first().delete()
+            val toDelete = logDir.listFiles()?.sortedBy { it.lastModified() }?.firstOrNull() ?: break
+            if (!toDelete.delete()) break
         }
     }
 }

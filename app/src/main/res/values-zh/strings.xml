@@ -45,8 +45,12 @@
     <string name="error_dir_json_not_found">目录中未找到 template.json</string>
     <string name="error_dir_json_invalid">template.json 格式无效</string>
     <string name="crash_logs_title">崩溃日志</string>
-    <string name="export_crash_log">导出崩溃日志</string>
+    <string name="share_crash_log">分享</string>
+    <string name="save_to_downloads">保存到下载</string>
+    <string name="saved_to_downloads">已保存 %s 到下载目录</string>
+    <string name="save_to_downloads_failed">保存到下载目录失败</string>
     <string name="clear_crash_log">清除全部日志</string>
+    <string name="crash_logs_cleared">已清除全部崩溃日志</string>
     <string name="no_crash_logs">暂无崩溃日志</string>
     <string name="check_for_updates">检查更新</string>
     <string name="already_latest">已是最新版本</string>

@@ -45,8 +45,12 @@
     <string name="error_dir_json_not_found">template.json not found in directory</string>
     <string name="error_dir_json_invalid">template.json format is invalid</string>
     <string name="crash_logs_title">Crash Logs</string>
-    <string name="export_crash_log">Export Crash Log</string>
+    <string name="share_crash_log">Share</string>
+    <string name="save_to_downloads">Save to Downloads</string>
+    <string name="saved_to_downloads">Saved %s to Downloads</string>
+    <string name="save_to_downloads_failed">Failed to save to Downloads</string>
     <string name="clear_crash_log">Clear All Logs</string>
+    <string name="crash_logs_cleared">All crash logs cleared</string>
     <string name="no_crash_logs">No crash logs</string>
     <string name="check_for_updates">Check for Updates</string>
     <string name="already_latest">Already up to date</string>
