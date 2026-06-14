@@ -9,6 +9,7 @@ on:
 
 jobs:
   check:
+    if: github.event_name != 'pull_request' || github.head_ref != 'dev' || github.base_ref != 'main'
     runs-on: ubuntu-latest
 
     steps:
