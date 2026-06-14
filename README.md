@@ -5,6 +5,7 @@ Android live wallpaper with gyroscope parallax effect and floating character por
 > **User Guide:** [English](README.md) | [中文](USAGE.zh-CN.md) | [日本語](USAGE.ja-JP.md) | [한국어](USAGE.ko-KR.md)
 
 ## Project Structure
+
 ```
 app/src/main/
 ├── kotlin/app/floatdeck/
@@ -28,6 +29,7 @@ app/src/main/
 ```
 
 ## Template System
+
 Each template lives in a folder with a `template.json` and image files:
 
 ```json
@@ -64,14 +66,15 @@ template_name/
 
 Download from [Releases](https://github.com/kxxoling/FloatDeck/releases) and import via Remote URL or Local ZIP:
 
-| Theme Pack | Link |
-|---|---|
-| Honkai 3rd: Flame Chasers | [flame_chasers.zip](https://github.com/kxxoling/FloatDeck/releases/download/v0.1.0/flame_chasers.zip) |
-| Honkai: Star Rail - Amphoreus Titans | [hsr_titans.zip](https://github.com/kxxoling/FloatDeck/releases/download/v0.1.0/hsr_titans.zip) |
+| Theme Pack                           | Link                                                                                                  |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Honkai 3rd: Flame Chasers            | [flame_chasers.zip](https://github.com/kxxoling/FloatDeck/releases/download/v0.1.0/flame_chasers.zip) |
+| Honkai: Star Rail - Amphoreus Titans | [hsr_titans.zip](https://github.com/kxxoling/FloatDeck/releases/download/v0.1.0/hsr_titans.zip)       |
 
 > **Note:** Honkai 3rd and Honkai: Star Rail assets are copyrighted by miHoYo Co., Ltd.
 
 **Validation rules:**
+
 - `template.json` is required with valid `id`, `wallpaper`, and `portraits` fields
 - Only `.png`, `.jpg`, `.jpeg`, `.webp` images allowed
 - Max ZIP size: 50MB, max single file: 10MB
@@ -79,20 +82,25 @@ Download from [Releases](https://github.com/kxxoling/FloatDeck/releases) and imp
 - Template ID: alphanumeric, underscores, hyphens only
 
 ## Build
+
 ```bash
 ./gradlew assembleDebug
 ```
 
 ## Install & Set
+
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start app.floatdeck/.settings.SettingsActivity
 ```
+
 Or: Settings → Wallpaper → Live Wallpapers → FloatDeck
 
 ## CI/CD
+
 - **CI**: push/PR to `main`/`dev` → ktlint + test + debug build
 - **Release**: GitHub Release published → signed APK → attached to release
 
 ## License
+
 MIT
