@@ -9,6 +9,7 @@ import app.floatdeck.data.TemplateConfig
 import java.nio.FloatBuffer
 import kotlin.math.abs
 import kotlin.math.sin
+import kotlin.random.Random
 
 // ============================================================================
 // 数据模型
@@ -104,6 +105,17 @@ class FloatDeckRenderer(
     private var swayTimeSeconds = 0f
 
     // ------------------------------------------------------------------
+    // 碎冰破碎状态：触摸/长按在落点炸开，闲置时随机自动破碎
+    // ------------------------------------------------------------------
+    private var shatterPortraitIndex = -1
+    private var shatterPosX = 0f
+    private var shatterPosY = 0f
+    private var shatterAmount = 0f
+    private var isPressing = false
+    private var pressStartTime = 0L
+    private var nextAmbientShatterTime = 0L
+
+    // ------------------------------------------------------------------
     // 锁屏布局
     // ------------------------------------------------------------------
 
@@ -141,6 +153,8 @@ class FloatDeckRenderer(
     private var uniformPortraitEffect = 0
     private var uniformPortraitTime = 0
     private var uniformPortraitViewAngle = 0
+    private var uniformPortraitShatterPos = 0
+    private var uniformPortraitShatterAmount = 0
 
     // ------------------------------------------------------------------
     // 着色器 uniform 位置 — 背景
@@ -216,6 +230,8 @@ class FloatDeckRenderer(
         uniformPortraitEffect = GLES30.glGetUniformLocation(portraitProgram, "uEffect")
         uniformPortraitTime = GLES30.glGetUniformLocation(portraitProgram, "uTime")
         uniformPortraitViewAngle = GLES30.glGetUniformLocation(portraitProgram, "uViewAngle")
+        uniformPortraitShatterPos = GLES30.glGetUniformLocation(portraitProgram, "uShatterPos")
+        uniformPortraitShatterAmount = GLES30.glGetUniformLocation(portraitProgram, "uShatterAmount")
 
         uniformBackgroundMvp = GLES30.glGetUniformLocation(backgroundProgram, "uMVP")
         uniformBackgroundParallax = GLES30.glGetUniformLocation(backgroundProgram, "uParallax")
@@ -364,6 +380,7 @@ class FloatDeckRenderer(
 
         swayTimeSeconds += 0.016f
         updateInertia()
+        updateShatter()
 
         // 横竖屏切换时重新加载模板
         if (needsTemplateReload) {
@@ -576,6 +593,14 @@ class FloatDeckRenderer(
                 smoothedPitchY.coerceIn(-0.5f, 0.5f),
                 smoothedRollX.coerceIn(-0.5f, 0.5f),
             )
+            // 碎冰破碎：仅当前破碎的立绘生效，其余置 0
+            if (globalIndex == shatterPortraitIndex && shatterAmount > 0.01f) {
+                GLES30.glUniform2f(uniformPortraitShatterPos, shatterPosX, shatterPosY)
+                GLES30.glUniform1f(uniformPortraitShatterAmount, shatterAmount)
+            } else {
+                GLES30.glUniform2f(uniformPortraitShatterPos, 0f, 0f)
+                GLES30.glUniform1f(uniformPortraitShatterAmount, 0f)
+            }
 
             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, state.textureId)
@@ -706,6 +731,10 @@ class FloatDeckRenderer(
                 state.drawOrder = maxOrder + 1
                 previousTouchX = touchX
                 previousTouchY = touchY
+                // 触发破碎：落点炸开
+                triggerShatter(draggedPortraitIndex, touchX, touchY, amount = 1f)
+                isPressing = true
+                pressStartTime = System.currentTimeMillis()
                 return true
             }
         }
@@ -730,6 +759,52 @@ class FloatDeckRenderer(
 
     fun onTouchUp() {
         draggedPortraitIndex = -1
+        isPressing = false
+    }
+
+    // ==================================================================
+    // 碎冰破碎：每帧衰减；长按持续碎裂；闲置时随机自动破碎
+    // ==================================================================
+
+    private fun updateShatter() {
+        if (portraitStates.isEmpty()) return
+        val now = System.currentTimeMillis()
+        // 长按：持续维持高强度破碎（边按边碎）
+        if (isPressing && now - pressStartTime > 400L) {
+            shatterAmount = maxOf(shatterAmount, 0.85f)
+        }
+        // 衰减（约 1s 内消失）
+        shatterAmount *= 0.94f
+        if (shatterAmount < 0.01f) shatterAmount = 0f
+        // 闲置且已平静时，随机触发一次自动破碎
+        if (!isPressing && shatterAmount < 0.05f && now > nextAmbientShatterTime) {
+            val idx = Random.nextInt(portraitStates.size)
+            val bounds = getPortraitBounds(portraitStates[idx])
+            val cx = (bounds[0] + bounds[2]) / 2f
+            val cy = (bounds[1] + bounds[3]) / 2f
+            val hx = ((bounds[2] - bounds[0]) / 2f).coerceAtLeast(1f)
+            val hy = ((bounds[3] - bounds[1]) / 2f).coerceAtLeast(1f)
+            // 落点偏中心随机
+            val px = cx + (Random.nextFloat() - 0.5f) * hx
+            val py = cy + (Random.nextFloat() - 0.5f) * hy
+            triggerShatter(idx, px, py, amount = 0.6f)
+            // 下一次随机破碎：4~8s 后
+            nextAmbientShatterTime = now + 4000L + Random.nextLong(4000L)
+        }
+    }
+
+    /** 把屏幕坐标的触摸点换算成卡片本地坐标并设置破碎。 */
+    private fun triggerShatter(index: Int, touchX: Float, touchY: Float, amount: Float) {
+        if (index < 0 || index >= portraitStates.size) return
+        val bounds = getPortraitBounds(portraitStates[index])
+        val cx = (bounds[0] + bounds[2]) / 2f
+        val cy = (bounds[1] + bounds[3]) / 2f
+        val hx = ((bounds[2] - bounds[0]) / 2f).coerceAtLeast(1f)
+        val hy = ((bounds[3] - bounds[1]) / 2f).coerceAtLeast(1f)
+        shatterPortraitIndex = index
+        shatterPosX = ((touchX - cx) / hx).coerceIn(-1.2f, 1.2f)
+        shatterPosY = ((touchY - cy) / hy).coerceIn(-1.2f, 1.2f)
+        shatterAmount = amount
     }
 
     /** Reset all portrait drag offsets and velocities to their default positions. */

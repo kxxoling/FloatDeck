@@ -57,6 +57,9 @@ object Shaders {
         uniform float uTime;
         // 炫彩视角偏移（来自陀螺仪）
         uniform vec2 uViewAngle;
+        // 碎冰破碎中心（卡片本地坐标 -1..1）与强度 0..1（由触摸/长按或随机触发）
+        uniform vec2 uShatterPos;
+        uniform float uShatterAmount;
 
         in vec2 vUV;
         in vec2 vLocalPos;
@@ -145,15 +148,59 @@ object Shaders {
         return smoothstep(-0.18, 0.0, dist);
     }
 
+    // ===== 碎冰破碎调试开关（改这里的常量后重新构建即可）=====
+    const int   ICE_SHATTER_RAYS   = 14;    // 径向裂纹条数
+    const float ICE_SHATTER_SPREAD = 1.8;   // 破碎传播半径系数
+    const float ICE_SHATTER_PUSH   = 0.06;  // 碎片外推强度（UV 位移）
+    const float ICE_SHATTER_BLEND  = 0.78;  // 破碎发光叠加强度
+    // ==============================================================
+
+    struct Shatter {
+        vec2 uv;     // 经破碎位移后的采样 UV
+        vec3 glow;   // 径向裂纹 + 前沿亮环的增量发光
+    };
+
+    // 计算破碎：以 uShatterPos 为中心向外传播；amt=0 时原样返回
+    Shatter shatterEffect(vec2 uv, vec2 localPos) {
+        Shatter s;
+        s.uv = uv;
+        s.glow = vec3(0.0);
+        float amt = uShatterAmount;
+        if (amt <= 0.001) return s;
+
+        vec2 dvec = localPos - uShatterPos;
+        float sdist = length(dvec) + 1e-4;
+        float front = amt * ICE_SHATTER_SPREAD;
+        // 前沿内（已破碎）区域：sdist 远小于 front 时为 1，大于 front 时为 0
+        // 用 1 - smoothstep 保证 edge0 < edge1（良定义）
+        float inFront = 1.0 - smoothstep(max(front - 0.6, 0.0), max(front, 0.001), sdist);
+
+        // 碎片外推：UV 沿径向向外位移 -> 碎片像飞散开
+        vec2 dir = dvec / sdist;
+        s.uv = uv + dir * amt * ICE_SHATTER_PUSH * inFront;
+
+        // 径向裂纹 + 前沿亮环
+        float ang = atan(dvec.y, dvec.x);
+        float rays = pow(abs(sin(ang * float(ICE_SHATTER_RAYS) * 0.5)), 6.0);
+        float radialCracks = rays * inFront;
+        float ring = exp(-pow(sdist - front, 2.0) * 22.0) * 0.8;
+        s.glow = vec3(0.9, 0.97, 1.0) * (radialCracks * 0.7 + ring) * amt * ICE_SHATTER_BLEND;
+        return s;
+    }
+
     vec3 applyIceEffect(vec3 color, vec2 uv, vec2 localPos, float dist) {
+        // ---- 破碎位移（碎片整体外推，UV 与 Voronoi 都跟随）----
+        Shatter sh = shatterEffect(uv, localPos);
+        vec2 sampleUV = sh.uv;
+
         // ---- 晶面划分 ----
         float scale = 7.0;
-        Voronoi v = voronoi2D(uv * scale);
+        Voronoi v = voronoi2D(sampleUV * scale);
 
         // ---- 晶面折射 + 色散 ----
         vec3  n       = facetNormal(v.cellId);
         float refrStr = 0.012;
-        vec3  refrCol = refractedSample(uTexture, uv, n.xy, refrStr);
+        vec3  refrCol = refractedSample(uTexture, sampleUV, n.xy, refrStr);
 
         // 冷色调，并轻微提亮中间调
         vec3 coldVec = vec3(0.86, 0.95, 1.08);
@@ -176,6 +223,7 @@ object Shaders {
         outCol += crackCol * crack * 0.55;              // 叠加裂纹
         outCol += vec3(0.9, 0.98, 1.0) * spk * 0.6;     // 闪烁
         outCol = mix(outCol, vec3(0.8, 0.92, 1.0), rim * 0.45);  // 边缘结霜
+        outCol += sh.glow;                               // 破碎发光
 
         // 保留立绘可读性：原图与冰效果混合
         return mix(color, outCol, 0.72);
