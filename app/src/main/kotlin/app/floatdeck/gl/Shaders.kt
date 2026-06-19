@@ -101,40 +101,82 @@ object Shaders {
             return mix(coldTint, iceColor, iceIntensity);
         }
 
-        // ---- 炫彩效果 ----
-        // 基于视角的彩虹渐变 + 光泽闪烁
+        // ---- 闪卡效果 ----
+        // 全息镭射卡：彩虹干涉 + 斜向镭射纹 + 扫光 + 闪粉，screen 混合保证立绘可读
+
+        vec2 hash22(vec2 p) {
+            p = vec2(dot(p, vec2(127.1, 311.7)),
+                     dot(p, vec2(269.5, 183.3)));
+            return fract(sin(p) * 43758.5453123);
+        }
+
+        // iq 余弦调色板：a + b*cos(2*pi*(c*t+d))，比 HSL->RGB 更便宜更平滑
+        vec3 palette(float t) {
+            vec3 a = vec3(0.5);
+            vec3 b = vec3(0.5);
+            vec3 c = vec3(1.0);
+            vec3 d = vec3(0.00, 0.33, 0.67);  // RGB 相位偏移 -> 彩虹
+            return a + b * cos(6.28318530718 * (c * t + d));
+        }
+
+        // 视角（陀螺仪）主导的虹彩相位，叠加空间变化与缓慢漂移
+        float iridT(vec2 localPos) {
+            float view = dot(uViewAngle, vec2(2.2, 1.7));
+            float pos  = dot(localPos, vec2(0.55, 0.45));
+            return fract(view * 0.6 + pos + uTime * 0.08);
+        }
+
+        // 斜向镭射干涉条纹（光栅）
+        float holoGrating(vec2 localPos) {
+            float coord = (localPos.x + localPos.y) * 22.0;
+            float s = sin(coord + uTime * 1.2);
+            return smoothstep(0.1, 0.9, s * 0.5 + 0.5);
+        }
+
+        // 沿对角线扫过的高光带（约 5.5s 一次）
+        float sweepFlare(vec2 localPos, float speed) {
+            float c = (localPos.x + localPos.y) * 0.5 - fract(uTime * speed) * 2.0 + 0.5;
+            c = abs(fract(c) - 0.5);
+            // 注意：smoothstep 需 edge0 < edge1，用 1 - smoothstep 保证良定义
+            return 1.0 - smoothstep(0.0, 0.18, c);
+        }
+
+        // 稀疏闪粉（约 1.5% 格子点亮，各自相位闪烁）
+        float holoGlitter(vec2 uv) {
+            vec2 g = floor(uv * vec2(90.0, 120.0));
+            vec2 h = hash22(g);
+            float on = step(0.985, h.x);
+            float tw = 0.5 + 0.5 * sin(uTime * 6.0 + h.y * 50.0);
+            return on * pow(tw, 3.0);
+        }
+
+        // screen 混合：1 - (1-a)(1-b)，不会让画面比原图更暗
+        vec3 screenBlend(vec3 a, vec3 b) { return 1.0 - (1.0 - a) * (1.0 - b); }
+
         vec3 applyHoloEffect(vec3 color, vec2 uv, vec2 localPos) {
-            // 视角相关偏移
-            float viewShift = localPos.x * 2.0 + uViewAngle.x * 0.8
-                            + localPos.y * 1.5 + uViewAngle.y * 0.6;
+            // 1) 虹彩
+            float t  = iridT(localPos);
+            vec3  ir = palette(t);
 
-            // 彩虹色：基于视角的色相旋转
-            float hue = fract(viewShift * 0.5 + uTime * 0.1);
+            // 2) 镭射光栅把虹彩切成条纹 -> 全息镭射质感
+            float gr = holoGrating(localPos);
+            vec3  foil = ir * (0.35 + 0.65 * gr);
 
-            // HSL -> RGB (饱和度 0.3, 亮度 0.7)
-            float h = hue * 6.0;
-            float c = 0.21;  // 饱和度 * 亮度
-            float x = c * (1.0 - abs(mod(h, 2.0) - 1.0));
-            float m = 0.595;  // 亮度 - c/2
-            vec3 rainbow;
-            if (h < 1.0)      rainbow = vec3(c, x, 0.0);
-            else if (h < 2.0) rainbow = vec3(x, c, 0.0);
-            else if (h < 3.0) rainbow = vec3(0.0, c, x);
-            else if (h < 4.0) rainbow = vec3(0.0, x, c);
-            else if (h < 5.0) rainbow = vec3(x, 0.0, c);
-            else              rainbow = vec3(c, 0.0, x);
-            rainbow += m;
+            // 3) 扫光（加色，轻微 RGB 偏移）
+            float sw = sweepFlare(localPos, 0.18);
+            vec3  flare = vec3(sw, sw * 0.95, sw * 0.85) * 0.45;
 
-            // 光泽条纹
-            float stripe = sin(localPos.y * 15.0 + viewShift * 3.0 + uTime * 1.5);
-            stripe = smoothstep(0.6, 1.0, stripe) * 0.12;
+            // 4) 闪粉
+            float gl = holoGlitter(uv);
+            vec3  glCol = palette(t + 0.1) * gl * 0.7;
 
-            // 边缘高光
-            float edgeGlow = 1.0 - length(localPos);
-            edgeGlow = smoothstep(0.3, 0.8, edgeGlow) * 0.08;
+            // 5) 边缘微泛光，营造卡片“吃光”
+            float r = 1.0 - length(localPos);
+            float bloom = smoothstep(-0.15, 0.35, r) * 0.06;
 
-            // 混合：炫彩覆盖约 8%
-            return mix(color, rainbow + stripe + edgeGlow, 0.08);
+            // 6) 合成：screen 混合，保证立绘清晰可读
+            vec3 holo = foil * 0.55 + flare + glCol + bloom;
+            return screenBlend(color, holo);
         }
 
         void main() {
