@@ -10,25 +10,12 @@ Android live wallpaper with gyroscope parallax effect and floating character por
 ## Project Structure
 
 ```
-app/src/main/
-├── kotlin/app/floatdeck/
-│   ├── gl/
-│   │   ├── FloatDeckRenderer.kt     # Main GL renderer (render loop, animation, touch)
-│   │   ├── Shaders.kt               # GLSL source (portrait + background)
-│   │   └── TextureLoader.kt         # Texture creation from assets/bitmaps
-│   ├── sensor/
-│   │   └── SensorHandler.kt         # Gyroscope/accelerometer listener
-│   ├── service/
-│   │   └── FloatDeckWallpaperService.kt  # Wallpaper service + EGL thread
-│   ├── settings/
-│   │   └── SettingsActivity.kt      # Compose settings UI
-│   └── data/
-│       ├── Models.kt                # Data classes (PortraitConfig, TemplateConfig)
-│       ├── SettingsRepository.kt    # DataStore-backed user preferences
-│       ├── Templates.kt             # Template JSON loader & layout calculator
-│       └── RemoteTemplateLoader.kt  # Remote/local ZIP & directory import
-└── assets/
-    └── templates/                   # Built-in template assets (JSON + images)
+app/src/main/kotlin/app/floatdeck/
+├── gl/        # OpenGL renderer, shaders, textures
+├── sensor/    # Gyroscope / accelerometer input
+├── service/   # Wallpaper service + EGL render thread
+├── settings/  # Compose settings + license screens
+└── data/      # Templates, preferences, remote import, update check
 ```
 
 ## Template System
