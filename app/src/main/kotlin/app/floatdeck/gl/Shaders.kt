@@ -102,7 +102,16 @@ object Shaders {
         }
 
         // ---- 闪卡效果 ----
-        // 全息镭射卡：彩虹干涉 + 斜向镭射纹 + 扫光 + 闪粉，screen 混合保证立绘可读
+        // 全息镭射卡：彩虹干涉 + 可切换的光斑形态 + 扫光 + 闪粉，screen 混合保证立绘可读
+
+        // ===== 闪卡调试开关（改这里的常量后重新构建即可切换/对比）=====
+        const int   HOLO_PATTERN        = 0;    // 光斑形态：0=斜向光栅 1=径向光芒 2=圆锥彩虹 3=扇面
+        const float HOLO_LIGHT_GAIN     = 1.2;  // 光源随陀螺仪倾斜的位移强度
+        const float HOLO_FOIL           = 0.55; // 整体镭射箔强度
+        const bool  HOLO_ENABLE_SWEEP   = true; // 扫光带
+        const bool  HOLO_ENABLE_GLITTER = true; // 闪粉
+        const int   HOLO_RAYS_COUNT     = 12;   // 模式 1/3 的光芒条数
+        // ==============================================================
 
         vec2 hash22(vec2 p) {
             p = vec2(dot(p, vec2(127.1, 311.7)),
@@ -126,11 +135,42 @@ object Shaders {
             return fract(view * 0.6 + pos + uTime * 0.08);
         }
 
-        // 斜向镭射干涉条纹（光栅）
-        float holoGrating(vec2 localPos) {
-            float coord = (localPos.x + localPos.y) * 22.0;
-            float s = sin(coord + uTime * 1.2);
-            return smoothstep(0.1, 0.9, s * 0.5 + 0.5);
+        // 光源位置：随陀螺仪倾斜位移（“反射光”跟着倾角走）
+        vec2 holoLight() { return uViewAngle * HOLO_LIGHT_GAIN; }
+
+        // 按 HOLO_PATTERN 切换的镭射箔形态，返回该点箔色
+        vec3 holoPattern(vec2 localPos) {
+            vec2 lightXY = holoLight();
+
+            if (HOLO_PATTERN == 0) {
+                // 斜向干涉光栅
+                float coord = (localPos.x + localPos.y) * 22.0;
+                float s = sin(coord + uTime * 1.2);
+                float gr = smoothstep(0.1, 0.9, s * 0.5 + 0.5);
+                return palette(iridT(localPos)) * (0.35 + 0.65 * gr);
+            }
+
+            vec2 d = localPos - lightXY;
+            float ang = atan(d.y, d.x);
+            float r = length(d);
+
+            if (HOLO_PATTERN == 1) {
+                // 径向光芒：从光源辐射的太阳光线
+                float rays = pow(abs(sin(ang * float(HOLO_RAYS_COUNT) * 0.5)), 8.0);
+                float hue = ang / 6.28318530718 * 0.5 + uTime * 0.05;
+                return palette(hue) * (0.35 + 0.65 * rays);
+            }
+            if (HOLO_PATTERN == 2) {
+                // 圆锥彩虹：角度直接映射色相
+                float hue = ang / 6.28318530718 + 0.5 + uTime * 0.05;
+                float falloff = clamp(r * 0.6, 0.0, 1.0);
+                return palette(hue) * (0.4 + 0.6 * falloff);
+            }
+            // HOLO_PATTERN == 3：扇面，径向环 + 角度射线组合
+            float rings = abs(sin(r * 9.0 - uTime * 1.5));
+            float rays = pow(abs(sin(ang * float(HOLO_RAYS_COUNT) * 0.5)), 6.0);
+            float hue = ang / 6.28318530718 * 0.5 + r * 0.3 + uTime * 0.05;
+            return palette(hue) * (0.35 + 0.4 * rays + 0.3 * rings);
         }
 
         // 沿对角线扫过的高光带（约 5.5s 一次）
@@ -154,28 +194,29 @@ object Shaders {
         vec3 screenBlend(vec3 a, vec3 b) { return 1.0 - (1.0 - a) * (1.0 - b); }
 
         vec3 applyHoloEffect(vec3 color, vec2 uv, vec2 localPos) {
-            // 1) 虹彩
-            float t  = iridT(localPos);
-            vec3  ir = palette(t);
+            // 1) 镭射箔（按调试开关切换形态）
+            vec3 foil = holoPattern(localPos) * HOLO_FOIL;
 
-            // 2) 镭射光栅把虹彩切成条纹 -> 全息镭射质感
-            float gr = holoGrating(localPos);
-            vec3  foil = ir * (0.35 + 0.65 * gr);
+            // 2) 扫光（加色，轻微 RGB 偏移）
+            vec3 flare = vec3(0.0);
+            if (HOLO_ENABLE_SWEEP) {
+                float sw = sweepFlare(localPos, 0.18);
+                flare = vec3(sw, sw * 0.95, sw * 0.85) * 0.45;
+            }
 
-            // 3) 扫光（加色，轻微 RGB 偏移）
-            float sw = sweepFlare(localPos, 0.18);
-            vec3  flare = vec3(sw, sw * 0.95, sw * 0.85) * 0.45;
+            // 3) 闪粉
+            vec3 glCol = vec3(0.0);
+            if (HOLO_ENABLE_GLITTER) {
+                float gl = holoGlitter(uv);
+                glCol = palette(iridT(localPos) + 0.1) * gl * 0.7;
+            }
 
-            // 4) 闪粉
-            float gl = holoGlitter(uv);
-            vec3  glCol = palette(t + 0.1) * gl * 0.7;
-
-            // 5) 边缘微泛光，营造卡片“吃光”
+            // 4) 边缘微泛光，营造卡片“吃光”
             float r = 1.0 - length(localPos);
             float bloom = smoothstep(-0.15, 0.35, r) * 0.06;
 
-            // 6) 合成：screen 混合，保证立绘清晰可读
-            vec3 holo = foil * 0.55 + flare + glCol + bloom;
+            // 5) 合成：screen 混合，保证立绘清晰可读
+            vec3 holo = foil + flare + glCol + bloom;
             return screenBlend(color, holo);
         }
 
