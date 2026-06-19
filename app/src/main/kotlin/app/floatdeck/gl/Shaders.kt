@@ -69,37 +69,117 @@ object Shaders {
             return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
         }
 
-        // ---- 碎碎冰效果 ----
-        // 基于网格的冰晶纹理，边缘发光，淡蓝色覆盖
-        vec3 applyIceEffect(vec3 color, vec2 uv, vec2 localPos, float dist) {
-            // 冰晶网格：用多重 sin 叠加模拟冰裂纹
-            float ice1 = sin(uv.x * 25.0 + sin(uv.y * 18.0) * 2.0);
-            float ice2 = sin(uv.y * 22.0 + sin(uv.x * 15.0) * 2.5);
-            float ice3 = sin((uv.x + uv.y) * 20.0 + sin(uv.x * 12.0 - uv.y * 16.0));
+    // ---- 碎碎冰效果 ----
+    // 基于 Voronoi 多边形的晶体碎冰：晶面折射色散 + 裂纹 + 闪烁 + 边缘冰霜
 
-            // 冰裂纹图案（锐利的线条）
-            float crack = max(
-                max(1.0 - smoothstep(0.0, 0.06, abs(ice1)),
-                    1.0 - smoothstep(0.0, 0.06, abs(ice2))),
-                1.0 - smoothstep(0.0, 0.05, abs(ice3))
-            );
+    vec2 hash22(vec2 p) {
+        p = vec2(dot(p, vec2(127.1, 311.7)),
+                 dot(p, vec2(269.5, 183.3)));
+        return fract(sin(p) * 43758.5453123);
+    }
 
-            // 边缘冰霜（靠近卡片边缘更明显）
-            float edgeDist = 1.0 - abs(localPos.x);  // 0~1, 0=边缘
-            float edgeFrost = smoothstep(0.75, 0.95, 1.0 - edgeDist);
+    struct Voronoi {
+        float f1;        // 到最近特征点的距离
+        float f2;        // 到次近特征点的距离
+        vec2  nearest;   // 到最近特征点的向量（格内）
+        vec2  cellId;    // 最近晶格的整数 id
+    };
 
-            // 冰晶闪烁
-            float sparkle = sin(uTime * 2.0 + uv.x * 40.0) * sin(uTime * 3.0 + uv.y * 35.0);
-            sparkle = smoothstep(0.85, 1.0, sparkle) * 0.3;
-
-            // 淡蓝色冰霜叠加
-            vec3 iceColor = vec3(0.7, 0.85, 1.0);
-            float iceIntensity = (crack * 0.4 + edgeFrost * 0.3 + sparkle);
-
-            // 整体微冷色调
-            vec3 coldTint = mix(color, color * vec3(0.9, 0.95, 1.1), 0.3);
-            return mix(coldTint, iceColor, iceIntensity);
+    // 3x3 邻域搜索，循环用常量边界（ES3.0 友好），循环内用平方距离省 sqrt
+    Voronoi voronoi2D(vec2 x) {
+        vec2 p = floor(x);
+        vec2 f = fract(x);
+        Voronoi r;
+        float d1 = 8.0, d2 = 8.0;
+        vec2 n1 = vec2(0.0), nearestCell = vec2(0.0);
+        for (int j = -1; j <= 1; j++) {
+            for (int i = -1; i <= 1; i++) {
+                vec2 b  = vec2(float(i), float(j));
+                vec2 o  = hash22(p + b);
+                vec2 rb = b - f + o;
+                float d = dot(rb, rb);
+                if (d < d1) {
+                    d2 = d1; n1 = rb;
+                    d1 = d; nearestCell = p + b;
+                } else if (d < d2) {
+                    d2 = d;
+                }
+            }
         }
+        r.f1      = sqrt(d1);
+        r.f2      = sqrt(d2);
+        r.nearest = n1;
+        r.cellId  = nearestCell;
+        return r;
+    }
+
+    // 每个晶面的平面法线（带轻微随机倾斜），用于折射与高光
+    vec3 facetNormal(vec2 cellId) {
+        vec2 h = hash22(cellId + 0.37) * 2.0 - 1.0;
+        return normalize(vec3(h * 0.6, 1.0));
+    }
+
+    // 三通道折射采样 -> 色散（chromatic dispersion）
+    vec3 refractedSample(sampler2D tex, vec2 uv, vec2 normalXY, float strength) {
+        vec2 d = normalXY * strength;
+        return vec3(
+            texture(tex, uv + d *  1.0).r,
+            texture(tex, uv + d *  0.0).g,
+            texture(tex, uv + d * -1.0).b
+        );
+    }
+
+    // F2 - F1 越小越靠近晶界 -> 裂纹越亮
+    float crackMask(float f1, float f2, float w) {
+        return 1.0 - smoothstep(0.0, w, f2 - f1);
+    }
+
+    // 闪烁：多频 sin 锐化成稀疏点
+    float sparkle(vec2 drv) {
+        float s = sin(drv.x * 1.3) * sin(drv.y * 1.7);
+        return pow(max(0.0, 0.5 + 0.5 * s), 24.0);
+    }
+
+    // 圆角边缘冰霜强度（靠近卡片边缘越强）
+    float frostRim(float dist) {
+        return smoothstep(-0.18, 0.0, dist);
+    }
+
+    vec3 applyIceEffect(vec3 color, vec2 uv, vec2 localPos, float dist) {
+        // ---- 晶面划分 ----
+        float scale = 7.0;
+        Voronoi v = voronoi2D(uv * scale);
+
+        // ---- 晶面折射 + 色散 ----
+        vec3  n       = facetNormal(v.cellId);
+        float refrStr = 0.012;
+        vec3  refrCol = refractedSample(uTexture, uv, n.xy, refrStr);
+
+        // 冷色调，并轻微提亮中间调
+        vec3 coldVec = vec3(0.86, 0.95, 1.08);
+        vec3 base    = refrCol * coldVec;
+        base = mix(base, vec3(dot(base, vec3(0.333))), -0.06);
+
+        // ---- 裂纹 ----
+        float crack    = crackMask(v.f1, v.f2, 0.045);
+        vec3  crackCol = vec3(0.85, 0.96, 1.0) * 1.6;
+
+        // ---- 闪烁（每格独立相位，仅约 3% 的格子点亮）----
+        float spk = sparkle(v.cellId * 7.3 + uTime * 1.7);
+        spk *= step(0.97, hash22(v.cellId).x);
+
+        // ---- 边缘冰霜 ----
+        float rim = frostRim(dist);
+
+        // ---- 合成 ----
+        vec3 outCol = base;
+        outCol += crackCol * crack * 0.55;              // 叠加裂纹
+        outCol += vec3(0.9, 0.98, 1.0) * spk * 0.6;     // 闪烁
+        outCol = mix(outCol, vec3(0.8, 0.92, 1.0), rim * 0.45);  // 边缘结霜
+
+        // 保留立绘可读性：原图与冰效果混合
+        return mix(color, outCol, 0.72);
+    }
 
         // ---- 炫彩效果 ----
         // 基于视角的彩虹渐变 + 光泽闪烁
