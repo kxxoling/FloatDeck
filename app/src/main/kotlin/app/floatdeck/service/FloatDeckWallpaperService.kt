@@ -5,9 +5,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.service.wallpaper.WallpaperService
+import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceHolder
+import androidx.core.content.ContextCompat
 import app.floatdeck.data.RemoteTemplateLoader
 import app.floatdeck.data.TemplateDef
 import app.floatdeck.data.Templates
@@ -18,6 +21,11 @@ import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
 import javax.microedition.khronos.egl.EGLDisplay
+
+private const val TAG = "FloatDeckWallpaper"
+private const val PREFS_NAME = "settings_prefs"
+private const val KEY_TEMPLATE_ID = "template_id"
+private const val KEY_PORTRAIT_EFFECT = "portrait_effect"
 
 /**
  * FloatDeck 动态壁纸服务入口。
@@ -32,6 +40,16 @@ class FloatDeckWallpaperService : WallpaperService() {
         private val sensorHandler = SensorHandler(applicationContext)
 
         private var glThread: GLWallpaperThread? = null
+
+        /**
+         * 监听设置变更（模板/特效），通知运行中的 GL 线程热重载。
+         * 使用强引用字段，避免 SharedPreferences 内部弱引用导致被 GC。
+         */
+        private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_TEMPLATE_ID || key == KEY_PORTRAIT_EFFECT) {
+                glThread?.requestReload()
+            }
+        }
 
         /** 监听锁屏/解锁广播，驱动渲染器的锁定-解锁过渡动画。 */
         private val lockReceiver =
@@ -72,15 +90,27 @@ class FloatDeckWallpaperService : WallpaperService() {
                     addAction(Intent.ACTION_SCREEN_ON)
                     addAction(Intent.ACTION_USER_PRESENT)
                 }
-            registerReceiver(lockReceiver, filter)
+            // Android 14+ 必须显式指定导出标志，否则抛 SecurityException
+            ContextCompat.registerReceiver(
+                this@FloatDeckWallpaperService,
+                lockReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            // 热重载：监听设置变化
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .registerOnSharedPreferenceChangeListener(prefsListener)
             sensorHandler.register()
         }
 
         override fun onDestroy() {
             unregisterReceiver(lockReceiver)
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .unregisterOnSharedPreferenceChangeListener(prefsListener)
             sensorHandler.unregister()
+            // GL 资源由 GL 线程在自己的 finally 中释放（需要 current context），
+            // stopGLThread 会 join 等待其完成。
             stopGLThread()
-            renderer.release()
             super.onDestroy()
         }
 
@@ -120,7 +150,7 @@ class FloatDeckWallpaperService : WallpaperService() {
         }
 
         private fun startGLThread() {
-            if (glThread?.isRunning == true) return
+            // 停止并等待旧线程退出，避免新旧线程争用同一 Surface/EGL
             stopGLThread()
             glThread =
                 GLWallpaperThread(
@@ -132,11 +162,25 @@ class FloatDeckWallpaperService : WallpaperService() {
         }
 
         private fun stopGLThread() {
-            glThread?.requestStop()
+            glThread?.let { thread ->
+                thread.requestStop()
+                try {
+                    // 等待渲染循环退出，确保 EGL/renderer 资源在该线程内清理完毕
+                    thread.join(STOP_JOIN_TIMEOUT_MS)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+                if (thread.isAlive) {
+                    Log.w(TAG, "GL thread did not stop in time, interrupting")
+                    thread.interrupt()
+                }
+            }
             glThread = null
         }
     }
 }
+
+private const val STOP_JOIN_TIMEOUT_MS = 1000L
 
 /**
  * GL 渲染线程：在壁纸 Surface 上自建 EGL 环境，以 ~60fps 循环调用渲染器。
@@ -153,94 +197,132 @@ class GLWallpaperThread(
     var isRunning = true
         private set
 
-    private var egl10: EGL10? = null
-    private var eglDisplay: EGLDisplay? = null
-    private var eglContext: EGLContext? = null
-    private var eglSurface: javax.microedition.khronos.egl.EGLSurface? = null
+    /** 由外部（设置变更）置位，渲染循环检测到后重新加载模板/特效。 */
+    @Volatile
+    private var reloadRequested = true
 
-    /** 模板是否已加载（只加载一次）。 */
+    /** 模板是否已加载（每线程独立；切换可见性会新建线程并重新加载）。 */
     private var templateLoaded = false
+
+    /** 标记 EGL/渲染器资源已就绪，finally 中据此决定是否调用 renderer.release()。 */
+    private var glReady = false
 
     fun requestStop() {
         isRunning = false
     }
 
-    override fun run() {
-        if (!initEGL()) return
+    fun requestReload() {
+        reloadRequested = true
+    }
 
+    override fun run() {
+        if (!initEGL()) {
+            Log.e(TAG, "EGL initialization failed")
+            return
+        }
+        glReady = true
+
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        var frameStart: Long
         try {
             renderer.onSurfaceCreated(null, null)
             while (isRunning) {
+                frameStart = System.nanoTime()
+
                 // 平滑插值传感器值（低通滤波，系数 0.08）
                 renderer.smoothedRollX +=
                     (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
                 renderer.smoothedPitchY +=
                     (sensorHandler.pitchY - renderer.smoothedPitchY) * 0.08f
 
-                // 首帧加载模板配置
-                if (!templateLoaded) {
-                    val prefs =
-                        context.getSharedPreferences(
-                            "settings_prefs",
-                            Context.MODE_PRIVATE,
-                        )
-                    val savedId =
-                        prefs.getString("template_id", "") ?: ""
-
-                    // 读取立绘特效设置
-                    val effectStr = prefs.getString("portrait_effect", "none") ?: "none"
-                    renderer.portraitEffect =
-                        when (effectStr) {
-                            "ice" -> 1
-                            "holo" -> 2
-                            else -> 0
-                        }
-
-                    // 尝试从远程模板加载，再从 assets 加载
-                    val remoteLoader = RemoteTemplateLoader(context)
-                    val remoteTemplateDir = File(context.filesDir, "remote_templates")
-                    val remoteDir = File(remoteTemplateDir, savedId)
-                    var def: TemplateDef? = null
-                    var isRemote = false
-                    if (remoteDir.isDirectory) {
-                        def = Templates.loadTemplateFromDir(remoteDir)
-                        isRemote = def != null
-                    }
-                    if (def == null) {
-                        def = Templates.loadTemplate(context, savedId)
-                    }
-                    if (def != null) {
-                        val rect = surfaceHolder.surfaceFrame
-                        val config =
-                            if (isRemote) {
-                                Templates.toTemplateConfigFromDir(
-                                    def,
-                                    remoteDir,
-                                    rect.width().toFloat(),
-                                    rect.height().toFloat(),
-                                )
-                            } else {
-                                Templates.toTemplateConfig(
-                                    context,
-                                    def,
-                                    rect.width().toFloat(),
-                                    rect.height().toFloat(),
-                                )
-                            }
-                        renderer.loadTemplate(config)
-                    }
+                // 首帧或设置变更后重新加载模板/特效
+                if (!templateLoaded || reloadRequested) {
+                    loadConfigFromPrefs(prefs)
                     templateLoaded = true
+                    reloadRequested = false
                 }
 
                 renderer.onDrawFrame(null)
 
                 egl10?.eglSwapBuffers(eglDisplay, eglSurface)
-                Thread.sleep(16) // ≈60fps
+                paceFrame(frameStart)
             }
-        } catch (_: Exception) {
-            // Surface 销毁时正常退出
+        } catch (e: InterruptedException) {
+            // 关闭时被中断，正常退出
+            Thread.currentThread().interrupt()
+        } catch (e: Exception) {
+            // 记录渲染循环异常，避免静默吞掉（Surface 销毁时也走此分支）
+            if (isRunning) {
+                Log.e(TAG, "Render loop terminated unexpectedly", e)
+            } else {
+                Log.d(TAG, "Render loop exited: ${e.message}")
+            }
         } finally {
+            if (glReady) {
+                // 必须在 EGL context 仍为 current 时释放 GL 资源
+                runCatching { renderer.release() }
+                    .onFailure { Log.w(TAG, "renderer.release() failed", it) }
+            }
             destroyEGL()
+        }
+    }
+
+    /** 根据本帧已耗时计算剩余时间睡眠，接近目标帧率且不浪费 CPU。 */
+    private fun paceFrame(frameStartNanos: Long) {
+        val elapsed = System.nanoTime() - frameStartNanos
+        val sleepMs = sleepMillisForFrame(elapsed, FRAME_INTERVAL_NANOS)
+        if (sleepMs > 0) {
+            try {
+                Thread.sleep(sleepMs)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+    }
+
+    /** 从设置读取模板 id 与特效并加载到渲染器。 */
+    private fun loadConfigFromPrefs(prefs: SharedPreferences) {
+        val savedId = prefs.getString(KEY_TEMPLATE_ID, "") ?: ""
+        val effectStr = prefs.getString(KEY_PORTRAIT_EFFECT, "none") ?: "none"
+        renderer.portraitEffect =
+            when (effectStr) {
+                "ice" -> 1
+                "holo" -> 2
+                else -> 0
+            }
+
+        // 尝试从远程模板加载，再从 assets 加载
+        val remoteLoader = RemoteTemplateLoader(context)
+        val remoteTemplateDir = File(context.filesDir, "remote_templates")
+        val remoteDir = File(remoteTemplateDir, savedId)
+        var def: TemplateDef? = null
+        var isRemote = false
+        if (remoteDir.isDirectory) {
+            def = Templates.loadTemplateFromDir(remoteDir)
+            isRemote = def != null
+        }
+        if (def == null) {
+            def = Templates.loadTemplate(context, savedId)
+        }
+        if (def != null) {
+            val rect = surfaceHolder.surfaceFrame
+            val config =
+                if (isRemote) {
+                    Templates.toTemplateConfigFromDir(
+                        def,
+                        remoteDir,
+                        rect.width().toFloat(),
+                        rect.height().toFloat(),
+                    )
+                } else {
+                    Templates.toTemplateConfig(
+                        context,
+                        def,
+                        rect.width().toFloat(),
+                        rect.height().toFloat(),
+                    )
+                }
+            renderer.loadTemplate(config)
         }
     }
 
@@ -316,7 +398,7 @@ class GLWallpaperThread(
         return true
     }
 
-    /** 释放 EGL 资源：解绑上下文 → 销毁表面 → 销毁上下文 → 终止显示。 */
+    /** 释放 EGL 资源：解绑上下文 → 销毁表面 → 销毁上下文 → 释放线程状态 → 终止显示。 */
     private fun destroyEGL() {
         val egl = egl10 ?: return
         val display = eglDisplay ?: return
@@ -330,5 +412,28 @@ class GLWallpaperThread(
         eglSurface?.let { egl.eglDestroySurface(display, it) }
         eglContext?.let { egl.eglDestroyContext(display, it) }
         egl.eglTerminate(display)
+        eglSurface = null
+        eglContext = null
     }
+
+    companion object {
+        private const val TAG = "GLWallpaperThread"
+        private const val TARGET_FPS = 60L
+        private const val FRAME_INTERVAL_NANOS = 1_000_000_000L / TARGET_FPS
+        private const val NANOS_PER_MS = 1_000_000L
+
+        /**
+         * 计算本帧应睡眠的毫秒数：用目标帧间隔减去已耗时的纳秒，下限为 0。
+         * 提取为纯函数便于单测。
+         */
+        internal fun sleepMillisForFrame(
+            elapsedNanos: Long,
+            frameIntervalNanos: Long = FRAME_INTERVAL_NANOS,
+        ): Long = ((frameIntervalNanos - elapsedNanos) / NANOS_PER_MS).coerceAtLeast(0L)
+    }
+
+    private var egl10: EGL10? = null
+    private var eglDisplay: EGLDisplay? = null
+    private var eglContext: EGLContext? = null
+    private var eglSurface: javax.microedition.khronos.egl.EGLSurface? = null
 }
