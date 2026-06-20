@@ -62,11 +62,10 @@ import app.floatdeck.data.RemoteTemplateLoader.HttpProtocolException
 import app.floatdeck.data.TemplateLoadException
 import app.floatdeck.data.UpdateChecker
 import app.floatdeck.service.FloatDeckWallpaperService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 
 /** 设置页 Activity：选择模板并将 FloatDeck 设为动态壁纸。 */
 class SettingsActivity : ComponentActivity() {
@@ -123,7 +122,7 @@ fun SettingsScreen(
     var updateError by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val scope = remember { CoroutineScope(Dispatchers.Main) }
+    val scope = rememberCoroutineScope()
     val remoteLoader = remember { RemoteTemplateLoader(context) }
 
     // 启动时从 DataStore 读取已保存的模板 ID
@@ -185,7 +184,7 @@ fun SettingsScreen(
         errorMessage = ""
         scope.launch {
             try {
-                val tempFile = File(context.cacheDir, "local_import.zip")
+                val tempFile = File.createTempFile("local_import", ".zip", context.cacheDir)
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(tempFile).use { output -> input.copyTo(output) }
                 } ?: throw TemplateLoadException(context.getString(R.string.error_cannot_read_file))
@@ -209,7 +208,7 @@ fun SettingsScreen(
         errorMessage = ""
         scope.launch {
             try {
-                val tempDir = File(context.cacheDir, "local_import_dir")
+                val tempDir = File(context.cacheDir, "local_import_dir_${UUID.randomUUID()}")
                 tempDir.deleteRecursively()
                 tempDir.mkdirs()
                 val docId = DocumentsContract.getTreeDocumentId(uri)
