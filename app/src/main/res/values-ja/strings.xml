@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FloatDeck</string>
+    <string name="wallpaper_description">浮かび上がるキャラクター立ち絵の視差壁紙</string>
+    <string name="set_as_live_wallpaper">ライブ壁紙として設定</string>
+    <string name="template_title">テンプレート</string>
+    <string name="imported_templates">インポート済みテンプレート</string>
+    <string name="delete">削除</string>
+    <string name="portrait_effect">立ち絵エフェクト</string>
+    <string name="effect_none">なし</string>
+    <string name="effect_ice">氷</string>
+    <string name="effect_holo">ホログラム</string>
+    <string name="import_remote_template">リモートテンプレートをインポート</string>
+    <string name="import_remote_desc">ZIPのURLを入力してテンプレートをダウンロード・インポート</string>
+    <string name="zip_url_label">ZIPのURL</string>
+    <string name="import_button">インポート</string>
+    <string name="local_import">ローカルからインポート</string>
+    <string name="zip_file">ZIPファイル</string>
+    <string name="directory">フォルダ</string>
+    <string name="import_success">テンプレート %s をインポートしました</string>
+    <string name="error_enter_url">URLを入力してください</string>
+    <string name="error_import_failed">インポートに失敗しました</string>
+    <string name="error_cannot_read_file">ファイルを読み込めません</string>
+    <string name="error_file_not_found">ファイルが見つかりません</string>
+    <string name="error_file_too_large">ファイルが大きすぎます（最大50MB）</string>
+    <string name="error_dir_not_found">フォルダが見つかりません</string>
+    <string name="error_url_empty">URLは空にできません</string>
+    <string name="error_url_invalid">URLの形式が無効です</string>
+    <string name="error_unsupported_protocol">HTTP/HTTPSプロトコルのみ対応しています</string>
+    <string name="error_download_empty">ダウンロードしたファイルが空です</string>
+    <string name="error_download_failed">ダウンロードに失敗しました。ネットワーク接続を確認してください</string>
+    <string name="error_template_exists">テンプレート「%s」は既に存在します。上書きしますか？</string>
+    <string name="error_invalid_zip_path">ZIPに無効なパスが含まれています: %s</string>
+    <string name="error_zip_structure">ZIPの構造エラー: ファイルはサブフォルダに入れてください（例: my_template/template.json）</string>
+    <string name="error_unsupported_file_type">未対応のファイル形式: %s（png/jpg/webp/jsonのみ対応）</string>
+    <string name="error_file_too_large_single">ファイルが大きすぎます: %s（最大10MB）</string>
+    <string name="error_json_invalid">template.jsonの形式が無効です: %s</string>
+    <string name="error_json_missing_id">template.jsonにidフィールドがありません</string>
+    <string name="error_json_missing_wallpaper">template.jsonにwallpaperフィールドがありません</string>
+    <string name="error_json_missing_portraits">template.jsonにportraitsフィールドがありません</string>
+    <string name="error_id_invalid">テンプレートIDには英数字・アンダースコア・ハイフンのみ使用できます</string>
+    <string name="error_json_not_found">ZIP内にtemplate.jsonが見つかりません</string>
+    <string name="error_missing_wallpaper">壁紙ファイルがありません: %s</string>
+    <string name="error_missing_portrait">立ち絵ファイルがありません: %s</string>
+    <string name="error_dir_json_not_found">フォルダ内にtemplate.jsonが見つかりません</string>
+    <string name="error_dir_json_invalid">template.jsonの形式が無効です</string>
+    <string name="crash_logs_title">クラッシュログ</string>
+    <string name="share_crash_log">共有</string>
+    <string name="save_to_downloads">ダウンロードに保存</string>
+    <string name="saved_to_downloads">%sをダウンロードに保存しました</string>
+    <string name="save_to_downloads_failed">ダウンロードへの保存に失敗しました</string>
+    <string name="clear_crash_log">すべてのログを消去</string>
+    <string name="crash_logs_cleared">すべてのクラッシュログを消去しました</string>
+    <string name="no_crash_logs">クラッシュログはありません</string>
+    <string name="check_for_updates">更新を確認</string>
+    <string name="already_latest">最新です</string>
+    <string name="update_available">更新があります</string>
+    <string name="view_release">リリースを見る</string>
+    <string name="update_check_failed">更新確認に失敗しました</string>
+    <string name="update_network_error">ネットワークエラーです。接続を確認してください</string>
+    <string name="update_timeout">リクエストがタイムアウトしました。後で再試行してください</string>
+    <string name="open_source_licenses">オープンソースライセンス</string>
+    <string name="back">戻る</string>
+
+    <!-- リモートテンプレートインポート: セキュリティ確認 -->
+    <string name="http_warning_title">安全でない接続</string>
+    <string name="http_warning_message">このURLはHTTP（暗号化なし）を使用しています。ダウンロード内容は第三者に覗き見られたり改ざんされる可能性があります。続行しますか？</string>
+    <string name="http_warning_continue">続行</string>
+    <string name="error_illegal_path">無効なパス: %1$s</string>
+    <string name="error_zip_total_too_large">展開後のサイズが上限を超えています（%1$sバイト）</string>
+
+    <!-- リモートテンプレートインポート: 検証エラー -->
+    <string name="error_url_no_host">URLにホスト名がありません</string>
+    <string name="error_single_file_too_large">ファイルが大きすぎます: %1$s（最大10MB）</string>
+    <string name="error_template_json_invalid">template.jsonの形式が無効です</string>
+    <string name="error_template_json_invalid_detail">template.jsonの形式が無効です: %1$s</string>
+    <string name="error_template_no_id">template.jsonにidフィールドがありません</string>
+    <string name="error_invalid_template_id">テンプレートIDには英数字・アンダースコア・ハイフンのみ使用できます</string>
+    <string name="error_template_no_wallpaper">template.jsonにwallpaperフィールドがありません</string>
+    <string name="error_template_no_portraits">template.jsonにportraitsフィールドがありません</string>
+    <string name="error_template_json_missing">template.jsonが見つかりません</string>
+    <string name="error_zip_failed">ZIPの処理に失敗しました: %1$s</string>
+</resources>

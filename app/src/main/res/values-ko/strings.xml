@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FloatDeck</string>
+    <string name="wallpaper_description">떠다니는 캐릭터 일러스트의 시차 배경화면</string>
+    <string name="set_as_live_wallpaper">라이브 배경화면으로 설정</string>
+    <string name="template_title">템플릿</string>
+    <string name="imported_templates">가져온 템플릿</string>
+    <string name="delete">삭제</string>
+    <string name="portrait_effect">일러스트 효과</string>
+    <string name="effect_none">없음</string>
+    <string name="effect_ice">얼음</string>
+    <string name="effect_holo">홀로그램</string>
+    <string name="import_remote_template">원격 템플릿 가져오기</string>
+    <string name="import_remote_desc">ZIP URL을 입력해 템플릿을 다운로드하고 가져옵니다</string>
+    <string name="zip_url_label">ZIP URL</string>
+    <string name="import_button">가져오기</string>
+    <string name="local_import">로컬에서 가져오기</string>
+    <string name="zip_file">ZIP 파일</string>
+    <string name="directory">폴더</string>
+    <string name="import_success">템플릿 %s을(를) 가져왔습니다</string>
+    <string name="error_enter_url">URL을 입력하세요</string>
+    <string name="error_import_failed">가져오기 실패</string>
+    <string name="error_cannot_read_file">파일을 읽을 수 없습니다</string>
+    <string name="error_file_not_found">파일을 찾을 수 없습니다</string>
+    <string name="error_file_too_large">파일이 너무 큽니다(최대 50MB)</string>
+    <string name="error_dir_not_found">폴더를 찾을 수 없습니다</string>
+    <string name="error_url_empty">URL은 비워둘 수 없습니다</string>
+    <string name="error_url_invalid">잘못된 URL 형식입니다</string>
+    <string name="error_unsupported_protocol">HTTP/HTTPS 프로토콜만 지원됩니다</string>
+    <string name="error_download_empty">다운로드한 파일이 비어 있습니다</string>
+    <string name="error_download_failed">다운로드 실패, 네트워크 연결을 확인하세요</string>
+    <string name="error_template_exists">템플릿 \"%s\"이(가) 이미 있습니다. 덮어쓰시겠습니까?</string>
+    <string name="error_invalid_zip_path">ZIP에 잘못된 경로가 포함되어 있습니다: %s</string>
+    <string name="error_zip_structure">ZIP 구조 오류: 파일은 하위 폴더에 있어야 합니다(예: my_template/template.json)</string>
+    <string name="error_unsupported_file_type">지원하지 않는 파일 형식: %s(png/jpg/webp/json만 지원)</string>
+    <string name="error_file_too_large_single">파일이 너무 큽니다: %s(최대 10MB)</string>
+    <string name="error_json_invalid">template.json 형식이 잘못되었습니다: %s</string>
+    <string name="error_json_missing_id">template.json에 id 필드가 없습니다</string>
+    <string name="error_json_missing_wallpaper">template.json에 wallpaper 필드가 없습니다</string>
+    <string name="error_json_missing_portraits">template.json에 portraits 필드가 없습니다</string>
+    <string name="error_id_invalid">템플릿 ID는 영문자, 숫자, 밑줄, 하이픈만 가능합니다</string>
+    <string name="error_json_not_found">ZIP에서 template.json을 찾을 수 없습니다</string>
+    <string name="error_missing_wallpaper">배경화면 파일이 없습니다: %s</string>
+    <string name="error_missing_portrait">일러스트 파일이 없습니다: %s</string>
+    <string name="error_dir_json_not_found">폴더에서 template.json을 찾을 수 없습니다</string>
+    <string name="error_dir_json_invalid">template.json 형식이 잘못되었습니다</string>
+    <string name="crash_logs_title">크래시 로그</string>
+    <string name="share_crash_log">공유</string>
+    <string name="save_to_downloads">다운로드에 저장</string>
+    <string name="saved_to_downloads">%s을(를) 다운로드에 저장했습니다</string>
+    <string name="save_to_downloads_failed">다운로드 저장에 실패했습니다</string>
+    <string name="clear_crash_log">모든 로그 삭제</string>
+    <string name="crash_logs_cleared">모든 크래시 로그를 삭제했습니다</string>
+    <string name="no_crash_logs">크래시 로그 없음</string>
+    <string name="check_for_updates">업데이트 확인</string>
+    <string name="already_latest">최신 버전입니다</string>
+    <string name="update_available">업데이트 있음</string>
+    <string name="view_release">릴리스 보기</string>
+    <string name="update_check_failed">업데이트 확인 실패</string>
+    <string name="update_network_error">네트워크 오류, 연결을 확인하세요</string>
+    <string name="update_timeout">요청 시간 초과, 나중에 다시 시도하세요</string>
+    <string name="open_source_licenses">오픈소스 라이선스</string>
+    <string name="back">뒤로</string>
+
+    <!-- 원격 템플릿 가져오기: 보안 확인 -->
+    <string name="http_warning_title">안전하지 않은 연결</string>
+    <string name="http_warning_message">이 URL은 HTTP(암호화 안 됨)를 사용합니다. 다운로드 내용이 제3자에게 엿보이거나 변조될 수 있습니다. 계속하시겠습니까?</string>
+    <string name="http_warning_continue">계속</string>
+    <string name="error_illegal_path">잘못된 경로: %1$s</string>
+    <string name="error_zip_total_too_large">압축 해제 크기가 한도를 초과했습니다(%1$s바이트)</string>
+
+    <!-- 원격 템플릿 가져오기: 검증 오류 -->
+    <string name="error_url_no_host">URL에 호스트명이 없습니다</string>
+    <string name="error_single_file_too_large">파일이 너무 큽니다: %1$s(최대 10MB)</string>
+    <string name="error_template_json_invalid">template.json 형식이 잘못되었습니다</string>
+    <string name="error_template_json_invalid_detail">template.json 형식이 잘못되었습니다: %1$s</string>
+    <string name="error_template_no_id">template.json에 id 필드가 없습니다</string>
+    <string name="error_invalid_template_id">템플릿 ID는 영문자, 숫자, 밑줄, 하이픈만 가능합니다</string>
+    <string name="error_template_no_wallpaper">template.json에 wallpaper 필드가 없습니다</string>
+    <string name="error_template_no_portraits">template.json에 portraits 필드가 없습니다</string>
+    <string name="error_template_json_missing">template.json을 찾을 수 없습니다</string>
+    <string name="error_zip_failed">ZIP 처리 실패: %1$s</string>
+</resources>
