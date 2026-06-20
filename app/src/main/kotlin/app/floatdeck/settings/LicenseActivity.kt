@@ -91,7 +91,7 @@ fun LicenseScreen(onBack: () -> Unit) {
                         name = "FloatDeck",
                         version = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                         license = LicenseType.MIT,
-                        url = "https://github.com/windrunner/FloatDeck",
+                        url = "https://github.com/kxxoling/FloatDeck",
                     ),
                 )
             }
