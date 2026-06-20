@@ -110,10 +110,23 @@ object CrashLogCollector {
     }
 
     private fun trimOldLogs() {
-        val files = logDir.listFiles()?.sortedBy { it.lastModified() }.orEmpty()
-        while (files.size >= MAX_LOG_FILES) {
-            val toDelete = logDir.listFiles()?.sortedBy { it.lastModified() }?.firstOrNull() ?: break
-            if (!toDelete.delete()) break
+        val toRemove = logsToTrim(logDir.listFiles().orEmpty(), MAX_LOG_FILES - 1)
+        toRemove.forEach { file ->
+            if (!file.delete()) {
+                android.util.Log.w("CrashLogCollector", "Failed to delete ${file.name}")
+            }
         }
+    }
+
+    /**
+     * Computes the old logs to delete so that the total stays within [maxKeep]
+     * (oldest by modification time are removed first). Pure function, directly unit-testable.
+     */
+    internal fun logsToTrim(
+        files: Array<out File>,
+        maxKeep: Int,
+    ): List<File> {
+        if (maxKeep < 0 || files.size <= maxKeep) return emptyList()
+        return files.sortedBy { it.lastModified() }.take(files.size - maxKeep)
     }
 }

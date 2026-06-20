@@ -25,8 +25,8 @@ android {
         applicationId = "app.floatdeck"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -73,6 +73,7 @@ android {
     }
 
     testOptions {
+        unitTests.isReturnDefaultValues = true
         unitTests.all {
             it.useJUnitPlatform()
         }
@@ -101,6 +102,8 @@ dependencies {
     testRuntimeOnly(libs.junit5.launcher)
     testImplementation(libs.junit5.params)
     testImplementation(libs.mockk)
+    // Real org.json implementation (the one in android.jar is a stub, so JSON can't be parsed in unit tests)
+    testImplementation("org.json:json:20240303")
 
     androidTestImplementation(libs.compose.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import kotlin.math.sqrt
 
 /**
  * 设备姿态传感器监听器。
@@ -15,6 +16,16 @@ import android.hardware.SensorManager
 class SensorHandler(
     private val context: Context,
 ) : SensorEventListener {
+    companion object {
+        /**
+         * 把旋转矢量传感器返回的 values 截断到前 4 个元素。
+         * 部分厂商返回长度为 5（含 heading），会导致
+         * [SensorManager.getRotationMatrixFromVector] 抛 IllegalArgumentException。
+         */
+        internal fun safeRotationValues(values: FloatArray): FloatArray =
+            if (values.size > 4) values.copyOf(4) else values
+    }
+
     /** 左右倾斜值（roll），约 -1 ~ 1 */
     var rollX = 0f
         private set
@@ -67,7 +78,10 @@ class SensorHandler(
             // 旋转矢量 / 游戏旋转矢量：通过旋转矩阵 → 欧拉角提取 roll 和 pitch
             Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GAME_ROTATION_VECTOR -> {
                 val rotationMatrix = FloatArray(9)
-                SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                SensorManager.getRotationMatrixFromVector(
+                    rotationMatrix,
+                    safeRotationValues(event.values),
+                )
                 val orientation = FloatArray(3)
                 SensorManager.getOrientation(rotationMatrix, orientation)
                 rollX = orientation[2] // 弧度制 roll
@@ -76,7 +90,7 @@ class SensorHandler(
             // 加速度计回退：用重力方向归一化估算倾斜
             Sensor.TYPE_ACCELEROMETER -> {
                 val g = event.values
-                val norm = Math.sqrt((g[0] * g[0] + g[1] * g[1] + g[2] * g[2]).toDouble()).toFloat()
+                val norm = sqrt(g[0] * g[0] + g[1] * g[1] + g[2] * g[2])
                 if (norm > 0.1f) {
                     rollX = g[0] / norm
                     pitchY = g[1] / norm

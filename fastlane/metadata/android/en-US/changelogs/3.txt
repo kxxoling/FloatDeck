@@ -1,0 +1,7 @@
+• Fixed crashes on Android 14+ (wallpaper now launches correctly).
+• Wallpaper is more stable: GL lifecycle, frame pacing and error logging improved.
+• Settings changes (template, effect) now apply to the wallpaper live.
+• Hardened template import: path-traversal and ZIP-bomb protection; HTTP downloads ask for confirmation.
+• Added Japanese and Korean interfaces (plus English and Chinese).
+• Fixed crash-log retention (logs were wiped instead of trimmed).
+• Removed the unused storage permission; minor docs cleanup.
