@@ -58,6 +58,7 @@ import app.floatdeck.data.PortraitEffect
 import app.floatdeck.data.RemoteTemplateLoader
 import app.floatdeck.data.SettingsRepository
 import app.floatdeck.data.TemplateDef
+import app.floatdeck.data.RemoteTemplateLoader.HttpProtocolException
 import app.floatdeck.data.TemplateLoadException
 import app.floatdeck.data.UpdateChecker
 import app.floatdeck.service.FloatDeckWallpaperService
@@ -116,6 +117,7 @@ fun SettingsScreen(
     var urlText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var showHttpWarning by remember { mutableStateOf(false) }
     var updateChecking by remember { mutableStateOf(false) }
     var updateAvailable by remember { mutableStateOf<app.floatdeck.data.ReleaseInfo?>(null) }
     var updateError by remember { mutableStateOf<String?>(null) }
@@ -143,7 +145,16 @@ fun SettingsScreen(
 
     remember { refreshRemoteTemplates() }
 
-    fun importTemplate() {
+    // Resolve an import error to a localized message: prefer the loader's messageResId
+    // (carried on TemplateLoadException for i18n) over the English literal.
+    fun localizedError(e: Throwable): String =
+        if (e is TemplateLoadException && e.messageResId != 0) {
+            context.getString(e.messageResId, *e.args)
+        } else {
+            e.message ?: context.getString(R.string.error_import_failed)
+        }
+
+    fun importTemplate(allowHttp: Boolean = false) {
         if (urlText.isBlank()) {
             errorMessage = context.getString(R.string.error_enter_url)
             return
@@ -152,14 +163,17 @@ fun SettingsScreen(
         errorMessage = ""
         scope.launch {
             try {
-                val id = remoteLoader.importFromUrl(urlText)
+                val id = remoteLoader.importFromUrl(urlText, allowHttp)
                 refreshRemoteTemplates()
                 urlText = ""
                 templateId = id
                 repo.setTemplate(id)
                 Toast.makeText(context, context.getString(R.string.import_success, id), Toast.LENGTH_SHORT).show()
+            } catch (e: HttpProtocolException) {
+                // HTTP (unencrypted): show a confirmation dialog; retry with allowHttp on accept.
+                showHttpWarning = true
             } catch (e: Exception) {
-                errorMessage = e.message ?: context.getString(R.string.error_import_failed)
+                errorMessage = localizedError(e)
             } finally {
                 isLoading = false
             }
@@ -183,7 +197,7 @@ fun SettingsScreen(
                 Toast.makeText(context, context.getString(R.string.import_success, id), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 android.util.Log.e("FloatDeck", "Local ZIP import failed", e)
-                errorMessage = e.message ?: context.getString(R.string.error_import_failed)
+                errorMessage = localizedError(e)
             } finally {
                 isLoading = false
             }
@@ -224,7 +238,7 @@ fun SettingsScreen(
                 Toast.makeText(context, context.getString(R.string.import_success, id), Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 android.util.Log.e("FloatDeck", "Local directory import failed", e)
-                errorMessage = e.message ?: context.getString(R.string.error_import_failed)
+                errorMessage = localizedError(e)
             } finally {
                 isLoading = false
             }
@@ -607,6 +621,27 @@ fun SettingsScreen(
                         confirmButton = {
                             TextButton(onClick = { updateError = null }) {
                                 Text(stringResource(android.R.string.ok))
+                            }
+                        },
+                    )
+                }
+
+                if (showHttpWarning) {
+                    AlertDialog(
+                        onDismissRequest = { showHttpWarning = false },
+                        title = { Text(stringResource(R.string.http_warning_title)) },
+                        text = {
+                            Text(stringResource(R.string.http_warning_message))
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showHttpWarning = false
+                                importTemplate(allowHttp = true)
+                            }) { Text(stringResource(R.string.http_warning_continue)) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showHttpWarning = false }) {
+                                Text(stringResource(android.R.string.cancel))
                             }
                         },
                     )

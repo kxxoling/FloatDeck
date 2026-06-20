@@ -61,4 +61,23 @@
     <string name="update_timeout">Request timeout, please try again later</string>
     <string name="open_source_licenses">Open Source Licenses</string>
     <string name="back">Back</string>
+
+    <!-- Remote template import: security prompts -->
+    <string name="http_warning_title">Insecure connection</string>
+    <string name="http_warning_message">This URL uses HTTP (unencrypted). The download could be observed or tampered with by third parties. Continue?</string>
+    <string name="http_warning_continue">Continue</string>
+    <string name="error_illegal_path">Illegal path: %1$s</string>
+    <string name="error_zip_total_too_large">Extracted content exceeds size limit (%1$s bytes)</string>
+
+    <!-- Remote template import: validation errors -->
+    <string name="error_url_no_host">URL is missing a hostname</string>
+    <string name="error_single_file_too_large">File too large: %1$s (max 10MB)</string>
+    <string name="error_template_json_invalid">Invalid template.json</string>
+    <string name="error_template_json_invalid_detail">Invalid template.json: %1$s</string>
+    <string name="error_template_no_id">template.json is missing the id field</string>
+    <string name="error_invalid_template_id">Template id may only contain letters, digits, underscores and hyphens</string>
+    <string name="error_template_no_wallpaper">template.json is missing the wallpaper field</string>
+    <string name="error_template_no_portraits">template.json is missing the portraits field</string>
+    <string name="error_template_json_missing">template.json not found</string>
+    <string name="error_zip_failed">ZIP processing failed: %1$s</string>
 </resources>
