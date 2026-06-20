@@ -242,7 +242,7 @@ class FloatDeckRenderer(
     private fun selectRandomLayout() {
         val isLandscape = screenWidthPixels > screenHeightPixels
         val layouts = if (isLandscape) LANDSCAPE_LAYOUTS else PORTRAIT_LAYOUTS
-        currentLockLayout = layouts[(System.nanoTime() % layouts.size).toInt()]
+        currentLockLayout = layouts[kotlin.random.Random.nextInt(layouts.size)]
         layoutSelected = true
     }
 
@@ -801,5 +801,5 @@ class FloatDeckRenderer(
         a: Float,
         b: Float,
         t: Float,
-    ): Float = a + (b - a) * t
+    ): Float = a + (b - a) * t.coerceIn(0f, 1f)
 }
