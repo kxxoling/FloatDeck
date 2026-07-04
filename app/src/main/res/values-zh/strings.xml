@@ -10,6 +10,7 @@
     <string name="effect_none">无</string>
     <string name="effect_ice">碎碎冰</string>
     <string name="effect_holo">炫彩</string>
+    <string name="drag_enabled">允许拖拽</string>
     <string name="import_remote_template">导入远程模板</string>
     <string name="import_remote_desc">输入 ZIP 包 URL，从远程下载并导入模板</string>
     <string name="zip_url_label">ZIP 包 URL</string>

@@ -10,6 +10,7 @@
     <string name="effect_none">None</string>
     <string name="effect_ice">Ice</string>
     <string name="effect_holo">Holographic</string>
+    <string name="drag_enabled">Allow Drag</string>
     <string name="import_remote_template">Import Remote Template</string>
     <string name="import_remote_desc">Enter ZIP URL to download and import template</string>
     <string name="zip_url_label">ZIP URL</string>
