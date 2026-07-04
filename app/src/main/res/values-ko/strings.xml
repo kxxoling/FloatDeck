@@ -10,6 +10,7 @@
     <string name="effect_none">없음</string>
     <string name="effect_ice">얼음</string>
     <string name="effect_holo">홀로그램</string>
+    <string name="drag_enabled">드래그 허용</string>
     <string name="import_remote_template">원격 템플릿 가져오기</string>
     <string name="import_remote_desc">ZIP URL을 입력해 템플릿을 다운로드하고 가져옵니다</string>
     <string name="zip_url_label">ZIP URL</string>

@@ -3,6 +3,7 @@ package app.floatdeck.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -26,6 +27,7 @@ class SettingsRepository(
         private val KEY_TEMPLATE = stringPreferencesKey("template_id")
         private val KEY_WALLPAPER_URI = stringPreferencesKey("wallpaper_uri")
         private val KEY_PORTRAIT_EFFECT = stringPreferencesKey("portrait_effect")
+        private val KEY_DRAG_ENABLED = booleanPreferencesKey("drag_enabled")
     }
 
     /** 当前选中的模板 ID。 */
@@ -67,7 +69,23 @@ class SettingsRepository(
             .apply()
     }
 
-    /** 保存壁纸 URI（传 null 则移除，恢复使用内置壁纸）。 */
+    /** Whether portrait drag is enabled, default true. */
+    val dragEnabled: Flow<Boolean> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_DRAG_ENABLED] ?: true
+        }
+
+    /** Save portrait drag enabled state. */
+    suspend fun setDragEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_DRAG_ENABLED] = enabled }
+        context
+            .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("drag_enabled", enabled)
+            .apply()
+    }
+
+    /** Save wallpaper URI (null removes it, reverting to the built-in wallpaper). */
     suspend fun setWallpaperUri(uri: String?) {
         context.dataStore.edit { prefs ->
             if (uri != null) {

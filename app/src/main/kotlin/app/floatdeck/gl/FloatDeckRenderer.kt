@@ -732,6 +732,17 @@ class FloatDeckRenderer(
         draggedPortraitIndex = -1
     }
 
+    /** Reset all portrait drag offsets and velocities to their default positions. */
+    fun resetDragOffsets() {
+        portraitStates.forEach { state ->
+            state.offsetX = 0f
+            state.offsetY = 0f
+            state.velocityX = 0f
+            state.velocityY = 0f
+        }
+        draggedPortraitIndex = -1
+    }
+
     fun onDoubleTap(
         touchX: Float,
         touchY: Float,
