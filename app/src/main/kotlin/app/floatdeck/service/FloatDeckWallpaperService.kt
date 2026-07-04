@@ -90,12 +90,14 @@ class FloatDeckWallpaperService : WallpaperService() {
                     addAction(Intent.ACTION_SCREEN_ON)
                     addAction(Intent.ACTION_USER_PRESENT)
                 }
-            // Android 14+ 必须显式指定导出标志，否则抛 SecurityException
+            // Android 14+ requires an explicit exported flag, otherwise SecurityException.
+            // Use EXPORTED: ACTION_USER_PRESENT is sent by a non-system_server process
+            // on some OEM ROMs (e.g. ASUS ZenUI) and would be blocked by NOT_EXPORTED.
             ContextCompat.registerReceiver(
                 this@FloatDeckWallpaperService,
                 lockReceiver,
                 filter,
-                ContextCompat.RECEIVER_NOT_EXPORTED,
+                ContextCompat.RECEIVER_EXPORTED,
             )
             // 热重载：监听设置变化
             getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -118,9 +120,14 @@ class FloatDeckWallpaperService : WallpaperService() {
             if (visible) {
                 sensorHandler.register()
                 startGLThread()
+                glThread?.setRendering(true)
             } else {
                 sensorHandler.unregister()
-                stopGLThread()
+                // Keep the GL thread alive: preserves EGL context and textures,
+                // only pauses rendering. updateTransition() still runs so the
+                // lock/unlock lerp completes while the screen is off, avoiding
+                // the template-reload stutter on screen-on.
+                glThread?.setRendering(false)
             }
         }
 
@@ -150,7 +157,7 @@ class FloatDeckWallpaperService : WallpaperService() {
         }
 
         private fun startGLThread() {
-            // 停止并等待旧线程退出，避免新旧线程争用同一 Surface/EGL
+            if (glThread?.isRunning == true) return
             stopGLThread()
             glThread =
                 GLWallpaperThread(
@@ -197,11 +204,15 @@ class GLWallpaperThread(
     var isRunning = true
         private set
 
+    /** Whether to perform GPU rendering + swap. Set to false when the screen is off; only updateTransition() runs. */
+    @Volatile
+    private var rendering = true
+
     /** 由外部（设置变更）置位，渲染循环检测到后重新加载模板/特效。 */
     @Volatile
     private var reloadRequested = true
 
-    /** 模板是否已加载（每线程独立；切换可见性会新建线程并重新加载）。 */
+    /** Whether the template has been loaded. Stays true across visibility changes since the GL thread is no longer recreated. */
     private var templateLoaded = false
 
     /** 标记 EGL/渲染器资源已就绪，finally 中据此决定是否调用 renderer.release()。 */
@@ -209,6 +220,10 @@ class GLWallpaperThread(
 
     fun requestStop() {
         isRunning = false
+    }
+
+    fun setRendering(enabled: Boolean) {
+        rendering = enabled
     }
 
     fun requestReload() {
@@ -229,22 +244,27 @@ class GLWallpaperThread(
             while (isRunning) {
                 frameStart = System.nanoTime()
 
-                // 平滑插值传感器值（低通滤波，系数 0.08）
-                renderer.smoothedRollX +=
-                    (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
-                renderer.smoothedPitchY +=
-                    (sensorHandler.pitchY - renderer.smoothedPitchY) * 0.08f
+                if (rendering) {
+                    // 平滑插值传感器值（低通滤波，系数 0.08）
+                    renderer.smoothedRollX +=
+                        (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
+                    renderer.smoothedPitchY +=
+                        (sensorHandler.pitchY - renderer.smoothedPitchY) * 0.08f
 
-                // 首帧或设置变更后重新加载模板/特效
-                if (!templateLoaded || reloadRequested) {
-                    loadConfigFromPrefs(prefs)
-                    templateLoaded = true
-                    reloadRequested = false
+                    // 首帧或设置变更后重新加载模板/特效
+                    if (!templateLoaded || reloadRequested) {
+                        loadConfigFromPrefs(prefs)
+                        templateLoaded = true
+                        reloadRequested = false
+                    }
+
+                    renderer.onDrawFrame(null)
+
+                    egl10?.eglSwapBuffers(eglDisplay, eglSurface)
+                } else {
+                    // Screen off: advance transition state only, no GPU rendering
+                    renderer.updateTransition()
                 }
-
-                renderer.onDrawFrame(null)
-
-                egl10?.eglSwapBuffers(eglDisplay, eglSurface)
                 paceFrame(frameStart)
             }
         } catch (e: InterruptedException) {
