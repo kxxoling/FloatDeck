@@ -1,0 +1,2 @@
+• Fixed lock/unlock transition: character cards now smoothly slide to the screen edges after unlocking (was broken since 0.3.0).
+• ACTION_USER_PRESENT broadcast no longer blocked on OEM ROMs like ASUS ZenUI.
