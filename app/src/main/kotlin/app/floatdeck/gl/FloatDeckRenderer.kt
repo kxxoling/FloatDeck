@@ -94,8 +94,8 @@ class FloatDeckRenderer(
     // ------------------------------------------------------------------
     // 锁屏/解锁过渡
     // ------------------------------------------------------------------
-    var transitionProgress = 0f
-    var targetTransition = 0f
+    @Volatile var transitionProgress = 0f
+    @Volatile var targetTransition = 0f
     private var isFirstFrame = true
 
     // ------------------------------------------------------------------
@@ -168,8 +168,8 @@ class FloatDeckRenderer(
 
     /** 解锁动画延迟（秒） */
     private val unlockDelaySeconds = 0.1f
-    private var unlockDelayTimer = 0f
-    private var isWaitingForUnlock = false
+    @Volatile private var unlockDelayTimer = 0f
+    @Volatile private var isWaitingForUnlock = false
 
     private val placeholderColors =
         intArrayOf(
@@ -360,22 +360,7 @@ class FloatDeckRenderer(
     fun onDrawFrame(gl: javax.microedition.khronos.opengles.GL10?) {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
 
-        if (isFirstFrame) {
-            transitionProgress = targetTransition
-            isFirstFrame = false
-        }
-
-        // 解锁延迟动画
-        if (isWaitingForUnlock) {
-            unlockDelayTimer += 0.016f
-            if (unlockDelayTimer >= unlockDelaySeconds) {
-                isWaitingForUnlock = false
-                targetTransition = 0f
-            }
-        }
-
-        val diff = targetTransition - transitionProgress
-        transitionProgress += if (abs(diff) < 0.01f) diff else diff * 0.08f
+        updateTransition()
 
         swayTimeSeconds += 0.016f
         updateInertia()
@@ -389,6 +374,27 @@ class FloatDeckRenderer(
 
         drawBackgroundLayers()
         drawPortraits()
+    }
+
+    /**
+     * Advance the lock/unlock transition state (pure CPU, callable without rendering).
+     */
+    fun updateTransition() {
+        if (isFirstFrame) {
+            transitionProgress = targetTransition
+            isFirstFrame = false
+        }
+
+        if (isWaitingForUnlock) {
+            unlockDelayTimer += 0.016f
+            if (unlockDelayTimer >= unlockDelaySeconds) {
+                isWaitingForUnlock = false
+                targetTransition = 0f
+            }
+        }
+
+        val diff = targetTransition - transitionProgress
+        transitionProgress += if (abs(diff) < 0.01f) diff else diff * 0.08f
     }
 
     private fun updateInertia() {
