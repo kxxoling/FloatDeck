@@ -57,6 +57,10 @@ object Shaders {
         uniform float uTime;
         // 炫彩视角偏移（来自陀螺仪）
         uniform vec2 uViewAngle;
+        // Shatter epicenter (card-local coords -1..1) and intensity 0..1
+        // (triggered by touch/long-press or idle randomness)
+        uniform vec2 uShatterPos;
+        uniform float uShatterAmount;
 
         in vec2 vUV;
         in vec2 vLocalPos;
@@ -69,72 +73,141 @@ object Shaders {
             return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
         }
 
+        vec2 hash22(vec2 p) {
+            p = vec2(dot(p, vec2(127.1, 311.7)),
+                     dot(p, vec2(269.5, 183.3)));
+            return fract(sin(p) * 43758.5453123);
+        }
+
+        // iq cosine palette: rainbow
+        vec3 rainbowPalette(float t) {
+            return 0.5 + 0.5 * cos(6.28318530718 * (t + vec3(0.0, 0.33, 0.67)));
+        }
+
+        // Screen blend: additive without darkening the image
+        vec3 screenBlend(vec3 a, vec3 b) { return 1.0 - (1.0 - a) * (1.0 - b); }
+
         // ---- 碎碎冰效果 ----
-        // 基于网格的冰晶纹理，边缘发光，淡蓝色覆盖
+        // Voronoi facets: refractive dispersion + cracks + view-angle
+        // glints + frost rim + shatter impulse
+
+        // 3x3-neighborhood Voronoi returning (nearest, second-nearest)
+        // distances; the cell id is passed out via the out parameter
+        vec2 voronoi(vec2 x, out vec2 cellId) {
+            vec2 p = floor(x);
+            vec2 f = fract(x);
+            float d1 = 8.0, d2 = 8.0;
+            cellId = vec2(0.0);
+            for (int j = -1; j <= 1; j++) {
+                for (int i = -1; i <= 1; i++) {
+                    vec2 b = vec2(float(i), float(j));
+                    vec2 rb = b - f + hash22(p + b);
+                    float d = dot(rb, rb);
+                    if (d < d1) {
+                        d2 = d1; d1 = d;
+                        cellId = p + b;
+                    } else if (d < d2) {
+                        d2 = d;
+                    }
+                }
+            }
+            return vec2(sqrt(d1), sqrt(d2));
+        }
+
         vec3 applyIceEffect(vec3 color, vec2 uv, vec2 localPos, float dist) {
-            // 冰晶网格：用多重 sin 叠加模拟冰裂纹
-            float ice1 = sin(uv.x * 25.0 + sin(uv.y * 18.0) * 2.0);
-            float ice2 = sin(uv.y * 22.0 + sin(uv.x * 15.0) * 2.5);
-            float ice3 = sin((uv.x + uv.y) * 20.0 + sin(uv.x * 12.0 - uv.y * 16.0));
+            // ---- Shatter shockwave: propagates outward from uShatterPos,
+            // pushing fragments radially apart ----
+            vec2 sampleUV = uv;
+            vec3 shatterGlow = vec3(0.0);
+            if (uShatterAmount > 0.001) {
+                vec2 dvec = localPos - uShatterPos;
+                float sdist = length(dvec) + 1e-4;
+                float front = uShatterAmount * 1.8;
+                float inFront = 1.0 - smoothstep(max(front - 0.6, 0.0), max(front, 0.001), sdist);
+                vec2 dir = dvec / sdist;
+                sampleUV = uv + dir * uShatterAmount * 0.05 * inFront;
+                float rays = pow(abs(sin(atan(dvec.y, dvec.x) * 7.0)), 6.0);
+                float ring = exp(-pow(sdist - front, 2.0) * 22.0) * 0.8;
+                shatterGlow = vec3(0.85, 0.95, 1.0) * (rays * inFront * 0.7 + ring) * uShatterAmount * 0.78;
+            }
 
-            // 冰裂纹图案（锐利的线条）
-            float crack = max(
-                max(1.0 - smoothstep(0.0, 0.06, abs(ice1)),
-                    1.0 - smoothstep(0.0, 0.06, abs(ice2))),
-                1.0 - smoothstep(0.0, 0.05, abs(ice3))
-            );
+            // ---- Facet partitioning and normals ----
+            vec2 cellId;
+            vec2 f12 = voronoi(sampleUV * 7.0, cellId);
+            float f1 = f12.x, f2 = f12.y;
+            vec2 tilt = hash22(cellId + 0.37) * 2.0 - 1.0;
 
-            // 边缘冰霜（靠近卡片边缘更明显）
-            float edgeDist = 1.0 - abs(localPos.x);  // 0~1, 0=边缘
-            float edgeFrost = smoothstep(0.75, 0.95, 1.0 - edgeDist);
+            // ---- Facet refraction + dispersion (offset sampling per channel) ----
+            vec2 refr = tilt * 0.012;
+            vec3 refrCol = vec3(
+                texture(uTexture, sampleUV + refr).r,
+                texture(uTexture, sampleUV).g,
+                texture(uTexture, sampleUV - refr).b);
 
-            // 冰晶闪烁
-            float sparkle = sin(uTime * 2.0 + uv.x * 40.0) * sin(uTime * 3.0 + uv.y * 35.0);
-            sparkle = smoothstep(0.85, 1.0, sparkle) * 0.3;
+            // Cold-tinted base
+            vec3 base = refrCol * vec3(0.88, 0.95, 1.06);
 
-            // 淡蓝色冰霜叠加
-            vec3 iceColor = vec3(0.7, 0.85, 1.0);
-            float iceIntensity = (crack * 0.4 + edgeFrost * 0.3 + sparkle);
+            // ---- Cracks (brighter near cell borders) ----
+            float crack = 1.0 - smoothstep(0.0, 0.05, f2 - f1);
 
-            // 整体微冷色调
-            vec3 coldTint = mix(color, color * vec3(0.9, 0.95, 1.1), 0.3);
-            return mix(coldTint, iceColor, iceIntensity);
+            // ---- Facet glints: normals vs gyroscope tilt; tilting the
+            // phone lights facets up in sequence ----
+            float facing = clamp(dot(normalize(vec3(tilt * 0.6, 1.0)),
+                                     normalize(vec3(uViewAngle * 1.4, 1.5))), 0.0, 1.0);
+            float glint = pow(facing, 24.0);
+
+            // ---- Sparse glitter (independent phase per cell) ----
+            vec2 h = hash22(cellId * 3.1);
+            float sparkle = pow(max(0.0, 0.5 + 0.5 * sin(uTime * 2.2 + h.y * 40.0)), 16.0)
+                          * step(0.9, h.x);
+
+            // ---- Frost rim ----
+            float rim = smoothstep(-0.18, 0.0, dist);
+
+            // ---- Composite ----
+            vec3 outCol = base;
+            outCol += vec3(0.8, 0.92, 1.0) * crack * 0.5;
+            outCol += vec3(0.95, 0.99, 1.0) * (glint * 0.7 + sparkle * 0.5);
+            outCol = mix(outCol, vec3(0.78, 0.9, 1.0), rim * 0.4);
+            outCol += shatterGlow;
+
+            return mix(color, outCol, 0.72);
         }
 
         // ---- 炫彩效果 ----
-        // 基于视角的彩虹渐变 + 光泽闪烁
+        // Holographic foil: hue flows with gyroscope tilt, plus diffraction
+        // grating, specular sheen and glitter
         vec3 applyHoloEffect(vec3 color, vec2 uv, vec2 localPos) {
-            // 视角相关偏移
-            float viewShift = localPos.x * 2.0 + uViewAngle.x * 0.8
-                            + localPos.y * 1.5 + uViewAngle.y * 0.6;
+            // Thin-film interference: view angle dominates, position
+            // contributes; slow drift as a fallback so a static phone
+            // still shows a faint shimmer
+            float phase = dot(uViewAngle, vec2(1.6, 1.2))
+                        + dot(localPos, vec2(0.5, 0.4))
+                        + uTime * 0.03;
+            vec3 foil = rainbowPalette(phase);
 
-            // 彩虹色：基于视角的色相旋转
-            float hue = fract(viewShift * 0.5 + uTime * 0.1);
+            // Diagonal diffraction grating: fine stripes whose color
+            // shifts with the view angle
+            float grating = 0.5 + 0.5 * sin((localPos.x + localPos.y) * 24.0 + phase * 6.0);
+            foil *= 0.45 + 0.55 * smoothstep(0.25, 0.85, grating);
 
-            // HSL -> RGB (饱和度 0.3, 亮度 0.7)
-            float h = hue * 6.0;
-            float c = 0.21;  // 饱和度 * 亮度
-            float x = c * (1.0 - abs(mod(h, 2.0) - 1.0));
-            float m = 0.595;  // 亮度 - c/2
-            vec3 rainbow;
-            if (h < 1.0)      rainbow = vec3(c, x, 0.0);
-            else if (h < 2.0) rainbow = vec3(x, c, 0.0);
-            else if (h < 3.0) rainbow = vec3(0.0, c, x);
-            else if (h < 4.0) rainbow = vec3(0.0, x, c);
-            else if (h < 5.0) rainbow = vec3(x, 0.0, c);
-            else              rainbow = vec3(c, 0.0, x);
-            rainbow += m;
+            // Specular sheen band: positioned by tilt, sweeping across
+            // the card as the phone is tilted
+            float sheenCoord = (localPos.x + localPos.y) * 0.7 - uViewAngle.x * 1.6 - uViewAngle.y * 0.9;
+            float sheen = exp(-pow(sheenCoord, 2.0) * 6.0);
+            vec3 sheenCol = mix(foil, vec3(1.0), 0.6) * sheen * 0.5;
 
-            // 光泽条纹
-            float stripe = sin(localPos.y * 15.0 + viewShift * 3.0 + uTime * 1.5);
-            stripe = smoothstep(0.6, 1.0, stripe) * 0.12;
+            // Sparse glitter: ~1.5% of cells lit, twinkling with
+            // individual phases
+            vec2 g = floor(uv * vec2(90.0, 120.0));
+            vec2 hg = hash22(g);
+            float glitter = step(0.985, hg.x)
+                          * pow(0.5 + 0.5 * sin(uTime * 6.0 + hg.y * 50.0), 3.0);
 
-            // 边缘高光
-            float edgeGlow = 1.0 - length(localPos);
-            edgeGlow = smoothstep(0.3, 0.8, edgeGlow) * 0.08;
-
-            // 混合：炫彩覆盖约 8%
-            return mix(color, rainbow + stripe + edgeGlow, 0.08);
+            // Composite: screen blend keeps the portrait readable while
+            // the effect stays vivid
+            vec3 holo = foil * 0.34 + sheenCol + rainbowPalette(phase + 0.12) * glitter * 0.6;
+            return screenBlend(color, holo);
         }
 
         void main() {

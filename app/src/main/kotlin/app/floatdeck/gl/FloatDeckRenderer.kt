@@ -141,6 +141,20 @@ class FloatDeckRenderer(
     private var uniformPortraitEffect = 0
     private var uniformPortraitTime = 0
     private var uniformPortraitViewAngle = 0
+    private var uniformPortraitShatterPos = 0
+    private var uniformPortraitShatterAmount = 0
+
+    // ------------------------------------------------------------------
+    // Shatter state: touch/long-press bursts at the touch point,
+    // idle triggers random ambient shatters
+    // ------------------------------------------------------------------
+    private var shatterPortraitIndex = -1
+    private var shatterPosX = 0f
+    private var shatterPosY = 0f
+    private var shatterAmount = 0f
+    private var isPressing = false
+    private var pressStartTime = 0L
+    private var nextAmbientShatterTime = 0L
 
     // ------------------------------------------------------------------
     // 着色器 uniform 位置 — 背景
@@ -216,6 +230,8 @@ class FloatDeckRenderer(
         uniformPortraitEffect = GLES30.glGetUniformLocation(portraitProgram, "uEffect")
         uniformPortraitTime = GLES30.glGetUniformLocation(portraitProgram, "uTime")
         uniformPortraitViewAngle = GLES30.glGetUniformLocation(portraitProgram, "uViewAngle")
+        uniformPortraitShatterPos = GLES30.glGetUniformLocation(portraitProgram, "uShatterPos")
+        uniformPortraitShatterAmount = GLES30.glGetUniformLocation(portraitProgram, "uShatterAmount")
 
         uniformBackgroundMvp = GLES30.glGetUniformLocation(backgroundProgram, "uMVP")
         uniformBackgroundParallax = GLES30.glGetUniformLocation(backgroundProgram, "uParallax")
@@ -364,6 +380,7 @@ class FloatDeckRenderer(
 
         swayTimeSeconds += 0.016f
         updateInertia()
+        updateShatter()
 
         // 横竖屏切换时重新加载模板
         if (needsTemplateReload) {
@@ -576,6 +593,15 @@ class FloatDeckRenderer(
                 smoothedPitchY.coerceIn(-0.5f, 0.5f),
                 smoothedRollX.coerceIn(-0.5f, 0.5f),
             )
+            // Shattering: only the currently shattering portrait is
+            // affected; zeroed for the rest
+            if (globalIndex == shatterPortraitIndex && shatterAmount > 0.01f) {
+                GLES30.glUniform2f(uniformPortraitShatterPos, shatterPosX, shatterPosY)
+                GLES30.glUniform1f(uniformPortraitShatterAmount, shatterAmount)
+            } else {
+                GLES30.glUniform2f(uniformPortraitShatterPos, 0f, 0f)
+                GLES30.glUniform1f(uniformPortraitShatterAmount, 0f)
+            }
 
             GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, state.textureId)
@@ -706,6 +732,9 @@ class FloatDeckRenderer(
                 state.drawOrder = maxOrder + 1
                 previousTouchX = touchX
                 previousTouchY = touchY
+                triggerShatter(draggedPortraitIndex, touchX, touchY, amount = 1f)
+                isPressing = true
+                pressStartTime = System.currentTimeMillis()
                 return true
             }
         }
@@ -730,6 +759,49 @@ class FloatDeckRenderer(
 
     fun onTouchUp() {
         draggedPortraitIndex = -1
+        isPressing = false
+    }
+
+    // ==================================================================
+    // Shatter: decays every frame; long-press keeps it going; idle
+    // triggers random ambient shatters
+    // ==================================================================
+
+    private fun updateShatter() {
+        if (portraitStates.isEmpty()) return
+        val now = System.currentTimeMillis()
+        // Long-press: keep the shatter intensity high while held
+        if (isPressing && now - pressStartTime > 400L) {
+            shatterAmount = maxOf(shatterAmount, 0.85f)
+        }
+        shatterAmount *= 0.94f
+        if (shatterAmount < 0.01f) shatterAmount = 0f
+        // When idle and settled, trigger a random ambient shatter
+        if (!isPressing && shatterAmount < 0.05f && now > nextAmbientShatterTime) {
+            val idx = kotlin.random.Random.nextInt(portraitStates.size)
+            val bounds = getPortraitBounds(portraitStates[idx])
+            val hx = ((bounds[2] - bounds[0]) / 2f).coerceAtLeast(1f)
+            val hy = ((bounds[3] - bounds[1]) / 2f).coerceAtLeast(1f)
+            triggerShatter(
+                idx,
+                (bounds[0] + bounds[2]) / 2f + (kotlin.random.Random.nextFloat() - 0.5f) * hx,
+                (bounds[1] + bounds[3]) / 2f + (kotlin.random.Random.nextFloat() - 0.5f) * hy,
+                amount = 0.6f,
+            )
+            nextAmbientShatterTime = now + 4000L + kotlin.random.Random.nextLong(4000L)
+        }
+    }
+
+/** Converts a screen-space touch point to card-local coordinates and arms the shatter. */
+    private fun triggerShatter(index: Int, touchX: Float, touchY: Float, amount: Float) {
+        if (index < 0 || index >= portraitStates.size) return
+        val bounds = getPortraitBounds(portraitStates[index])
+        val hx = ((bounds[2] - bounds[0]) / 2f).coerceAtLeast(1f)
+        val hy = ((bounds[3] - bounds[1]) / 2f).coerceAtLeast(1f)
+        shatterPortraitIndex = index
+        shatterPosX = ((touchX - (bounds[0] + bounds[2]) / 2f) / hx).coerceIn(-1.2f, 1.2f)
+        shatterPosY = ((touchY - (bounds[1] + bounds[3]) / 2f) / hy).coerceIn(-1.2f, 1.2f)
+        shatterAmount = amount
     }
 
     /** Reset all portrait drag offsets and velocities to their default positions. */
