@@ -156,6 +156,15 @@ class FloatDeckRenderer(
     private val portraitHeightScreenFraction = 0.24f
     private val portraitAspectRatio = 0.5f
 
+    // ------------------------------------------------------------------
+    // Texture sampling caps: 1024px longest edge already exceeds what cards
+    // need; the fullscreen wallpaper is allowed 2048px
+    // ------------------------------------------------------------------
+    private companion object {
+        const val DEFAULT_TEXTURE_MAX_DIM = 1024
+        const val WALLPAPER_TEXTURE_MAX_DIM = 2048
+    }
+
     /** 当前立绘特效。由壁纸服务从 SharedPreferences 读取后设置。 */
     var portraitEffect: Int = 0 // 0=无, 1=碎碎冰, 2=炫彩
 
@@ -257,9 +266,9 @@ class FloatDeckRenderer(
 
         val bgResult =
             if (template.isRemote && template.wallpaperAsset != null) {
-                loadTextureFromPath(template.wallpaperAsset)
+                loadTextureFromPath(template.wallpaperAsset, WALLPAPER_TEXTURE_MAX_DIM)
             } else {
-                loadFullResTexture(template.wallpaperAsset ?: "")
+                loadFullResTexture(template.wallpaperAsset ?: "", WALLPAPER_TEXTURE_MAX_DIM)
             }
         if (bgResult != null) {
             wallpaperTextureId = bgResult.first
@@ -308,45 +317,67 @@ class FloatDeckRenderer(
         }
     }
 
-    private fun loadTextureFromPath(path: String): Triple<Int, Int, Int>? {
+    /**
+     * Computes the power-of-two sample size that brings the longest edge
+     * under [maxDim] pixels. Cards occupy ~20% of screen height, so decoding
+     * them at full resolution only wastes memory and upload bandwidth.
+     */
+    private fun sampleSizeFor(width: Int, height: Int, maxDim: Int): Int {
+        var sample = 1
+        var longest = maxOf(width, height)
+        while (longest / 2 >= maxDim) {
+            sample *= 2
+            longest /= 2
+        }
+        return sample
+    }
+
+    private fun loadTextureFromPath(
+        path: String,
+        maxDim: Int = DEFAULT_TEXTURE_MAX_DIM,
+    ): Triple<Int, Int, Int>? {
         return try {
             val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(path, opts)
-            val width = opts.outWidth
-            val height = opts.outHeight
-            val bitmap = BitmapFactory.decodeFile(path) ?: return null
+            val sample = sampleSizeFor(opts.outWidth, opts.outHeight, maxDim)
+            val decodeOpts =
+                BitmapFactory.Options().apply { inSampleSize = sample }
+            val bitmap = BitmapFactory.decodeFile(path, decodeOpts) ?: return null
             val texId = TextureLoader.loadBitmap(bitmap)
             bitmap.recycle()
-            Triple(texId, width, height)
+            Triple(texId, bitmap.width, bitmap.height)
         } catch (_: Exception) {
             null
         }
     }
 
-    private fun loadFullResTexture(assetPath: String): Triple<Int, Int, Int>? {
+    private fun loadFullResTexture(
+        assetPath: String,
+        maxDim: Int = DEFAULT_TEXTURE_MAX_DIM,
+    ): Triple<Int, Int, Int>? {
         return try {
             val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             context.assets.open(assetPath).use {
                 BitmapFactory.decodeStream(it, null, opts)
             }
-            val width = opts.outWidth
-            val height = opts.outHeight
-            android.util.Log.d("FloatDeck", "Loading texture: $assetPath ${width}x${height}")
-            if (width <= 0 || height <= 0) {
+            if (opts.outWidth <= 0 || opts.outHeight <= 0) {
                 android.util.Log.e("FloatDeck", "Invalid dimensions: $assetPath")
                 return null
             }
+            val decodeOpts =
+                BitmapFactory.Options().apply {
+                    inSampleSize = sampleSizeFor(opts.outWidth, opts.outHeight, maxDim)
+                }
             val bitmap =
                 context.assets.open(assetPath).use {
-                    BitmapFactory.decodeStream(it)
+                    BitmapFactory.decodeStream(it, null, decodeOpts)
                 } ?: run {
                     android.util.Log.e("FloatDeck", "decodeStream returned null: $assetPath")
                     return null
                 }
             val texId = TextureLoader.loadBitmap(bitmap)
-            android.util.Log.d("FloatDeck", "Loaded texture: $assetPath -> texId=$texId")
             bitmap.recycle()
-            Triple(texId, width, height)
+            Triple(texId, bitmap.width, bitmap.height)
         } catch (e: Exception) {
             android.util.Log.e("FloatDeck", "Failed to load texture: $assetPath", e)
             null
