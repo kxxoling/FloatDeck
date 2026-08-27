@@ -4,7 +4,9 @@ package app.floatdeck.settings
 
 import android.app.WallpaperManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.hardware.display.DisplayManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
@@ -28,6 +30,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -143,6 +149,37 @@ fun SettingsScreen(
             repo.dragEnabled.collect { dragEnabled = it }
         }
     }
+
+    var frameRateMode by remember { mutableStateOf("auto") }
+    remember {
+        scope.launch {
+            repo.frameRateMode.collect { frameRateMode = it }
+        }
+    }
+
+    // Highest refresh rate supported by the built-in display.
+    val maxRefreshHz by remember {
+        mutableStateOf(
+            ((context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
+                ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+                ?.supportedModes
+                ?.maxOfOrNull { it.refreshRate } ?: 60f).toInt(),
+        )
+    }
+
+    // Fraction-of-max options, dropping any that would fall below 30fps.
+    val frameRateFractionOptions =
+        listOf("half" to 2, "third" to 3, "quarter" to 4)
+            .map { (mode, denom) -> Triple(mode, denom, maxRefreshHz / denom) }
+            .filter { (_, _, hz) -> hz >= 30 }
+
+    fun frameRateModeLabel(mode: String): String =
+        when (mode) {
+            "half" -> "${maxRefreshHz / 2} Hz"
+            "third" -> "${maxRefreshHz / 3} Hz"
+            "quarter" -> "${maxRefreshHz / 4} Hz"
+            else -> context.getString(R.string.frame_rate_auto, maxRefreshHz)
+        }
 
     // 加载已导入的远程模板
     fun refreshRemoteTemplates() {
@@ -392,6 +429,49 @@ fun SettingsScreen(
                         checked = dragEnabled,
                         onCheckedChange = { scope.launch { repo.setDragEnabled(it) } },
                     )
+                }
+            }
+
+            // Render frame rate preference (Material3 exposed dropdown)
+            item {
+                var frameRateMenuExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = frameRateMenuExpanded,
+                    onExpandedChange = { frameRateMenuExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = frameRateModeLabel(frameRateMode),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.frame_rate_title)) },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = frameRateMenuExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = frameRateMenuExpanded,
+                        onDismissRequest = { frameRateMenuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(context.getString(R.string.frame_rate_auto, maxRefreshHz)) },
+                            onClick = {
+                                scope.launch { repo.setFrameRateMode("auto") }
+                                frameRateMenuExpanded = false
+                            },
+                        )
+                        frameRateFractionOptions.forEach { (mode, _, hz) ->
+                            DropdownMenuItem(
+                                text = { Text("$hz Hz") },
+                                onClick = {
+                                    scope.launch { repo.setFrameRateMode(mode) }
+                                    frameRateMenuExpanded = false
+                                },
+                            )
+                        }
+                    }
                 }
             }
 

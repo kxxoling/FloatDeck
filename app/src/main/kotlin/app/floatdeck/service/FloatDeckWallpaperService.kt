@@ -27,6 +27,7 @@ private const val PREFS_NAME = "settings_prefs"
 private const val KEY_TEMPLATE_ID = "template_id"
 private const val KEY_PORTRAIT_EFFECT = "portrait_effect"
 private const val KEY_DRAG_ENABLED = "drag_enabled"
+private const val KEY_FRAME_RATE_MODE = "frame_rate_mode"
 
 /**
  * FloatDeck 动态壁纸服务入口。
@@ -53,6 +54,11 @@ class FloatDeckWallpaperService : WallpaperService() {
                     val enabled = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .getBoolean(KEY_DRAG_ENABLED, true)
                     if (!enabled) renderer.resetDragOffsets()
+                }
+                KEY_FRAME_RATE_MODE -> {
+                    val mode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
+                    glThread?.updateFrameRatePreference(mode)
                 }
             }
         }
@@ -314,6 +320,10 @@ class GLWallpaperThread(
     /** Last refresh rate voted for via Surface.setFrameRate; -1 = none yet. */
     private var lastRequestedRefreshFps = -1f
 
+    /** Frame rate mode from settings: auto | half | third | quarter (of max refresh). */
+    @Volatile
+    private var preferredFrameRateMode = "auto"
+
     fun requestStop() {
         isRunning = false
     }
@@ -324,6 +334,13 @@ class GLWallpaperThread(
 
     fun requestReload() {
         reloadRequested = true
+    }
+
+    /** Applies a frame-rate mode from settings (auto | half | third | quarter) on the next poll. */
+    fun updateFrameRatePreference(mode: String) {
+        preferredFrameRateMode = mode
+        // Nudge the counter so the next frame triggers an immediate poll
+        frameCounter = DISPLAY_POLL_INTERVAL_FRAMES - 1
     }
 
     override fun run() {
@@ -404,9 +421,21 @@ class GLWallpaperThread(
     /** Refreshes pacing state from the display and power manager. */
     private fun pollDisplayState() {
         val d = display ?: return
-        val fps = d.refreshRate.toInt().coerceIn(30, 240)
-        fullFrameIntervalNanos = 1_000_000_000L / fps
-        requestHighRefreshRate(d)
+        val refresh = d.refreshRate.toInt().coerceIn(30, 240)
+        val maxHz = d.supportedModes.maxOfOrNull { it.refreshRate.toInt() } ?: refresh
+        val preferred = when (preferredFrameRateMode) {
+            "half" -> maxHz / 2
+            "third" -> maxHz / 3
+            "quarter" -> maxHz / 4
+            else -> -1
+        }
+        // Pace at the preferred rate but never faster than the panel currently
+        // refreshes; the vote below asks the panel to move toward it. Fraction
+        // rates divide the max refresh evenly, so even a panel still running
+        // at max presents each pace tick at a whole number of vblanks.
+        val paceFps = if (preferred > 0) minOf(preferred, refresh) else refresh
+        fullFrameIntervalNanos = 1_000_000_000L / paceFps
+        requestHighRefreshRate(d, preferred.takeIf { it > 0 })
     }
 
     /**
@@ -415,9 +444,15 @@ class GLWallpaperThread(
      * its default mode (60Hz on the test device) even when higher modes are
      * available; the vote lets the panel ramp up while the wallpaper renders.
      */
-    private fun requestHighRefreshRate(d: android.view.Display) {
+    private fun requestHighRefreshRate(
+        d: android.view.Display,
+        preferredFps: Int?,
+    ) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
-        val desired = d.supportedModes.maxOfOrNull { it.refreshRate } ?: d.refreshRate
+        val desired =
+            preferredFps?.toFloat()
+                ?: d.supportedModes.maxOfOrNull { it.refreshRate }
+                ?: d.refreshRate
         if (desired == lastRequestedRefreshFps) return
         val surface = surfaceHolder.surface ?: return
         runCatching {
@@ -537,6 +572,7 @@ class GLWallpaperThread(
                 "holo" -> 2
                 else -> 0
             }
+        preferredFrameRateMode = prefs.getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
 
         // 尝试从远程模板加载，再从 assets 加载
         val remoteLoader = RemoteTemplateLoader(context)
