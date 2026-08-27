@@ -10,17 +10,18 @@ import org.junit.jupiter.api.Test
  */
 class GLWallpaperThreadFramePacingTest {
     // FRAME_INTERVAL_NANOS = 1_000_000_000 / 60 = 16_666_666
+    // PRESENT_MARGIN_NANOS = 3ms = 3_000_000
 
     @Test
-    fun `frame that took zero time sleeps the full interval`() {
-        // 16_666_666 / 1_000_000 = 16
-        assertEquals(16L, GLWallpaperThread.sleepMillisForFrame(0L, 16_666_666L))
+    fun `frame that took zero time sleeps interval minus present margin`() {
+        // (16_666_666 - 3_000_000) / 1_000_000 = 13
+        assertEquals(13L, GLWallpaperThread.sleepMillisForFrame(0L, 16_666_666L))
     }
 
     @Test
-    fun `frame that used half the interval sleeps the remainder`() {
-        // (16_666_666 - 8_333_333) / 1_000_000 = 8
-        assertEquals(8L, GLWallpaperThread.sleepMillisForFrame(8_333_333L, 16_666_666L))
+    fun `frame that used half the interval sleeps the remainder minus margin`() {
+        // (16_666_666 - 3_000_000 - 8_333_333) / 1_000_000 = 5
+        assertEquals(5L, GLWallpaperThread.sleepMillisForFrame(8_333_333L, 16_666_666L))
     }
 
     @Test
@@ -35,9 +36,15 @@ class GLWallpaperThreadFramePacingTest {
     }
 
     @Test
+    fun `margin can be disabled to sleep the full interval`() {
+        // presentMarginNanos = 0 恢复无余量行为，便于对比
+        assertEquals(16L, GLWallpaperThread.sleepMillisForFrame(0L, 16_666_666L, 0L))
+    }
+
+    @Test
     fun `default frame interval is 60fps`() {
         // 不传 frameIntervalNanos 时使用默认 60fps 间隔
-        assertEquals(16L, GLWallpaperThread.sleepMillisForFrame(0L))
+        assertEquals(13L, GLWallpaperThread.sleepMillisForFrame(0L))
         assertEquals(0L, GLWallpaperThread.sleepMillisForFrame(20_000_000L))
     }
 }

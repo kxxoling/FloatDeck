@@ -8,6 +8,7 @@ import android.opengl.Matrix
 import app.floatdeck.data.TemplateConfig
 import java.nio.FloatBuffer
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.sin
 
 // ============================================================================
@@ -102,6 +103,13 @@ class FloatDeckRenderer(
     // 晃动动画
     // ------------------------------------------------------------------
     private var swayTimeSeconds = 0f
+
+    // ------------------------------------------------------------------
+    // Frame delta (seconds): animations advance by real elapsed time so
+    // speed is identical on 60/90/120Hz screens
+    // ------------------------------------------------------------------
+    private var lastFrameNanos = 0L
+    private var frameDeltaSeconds = 0.016f
 
     // ------------------------------------------------------------------
     // 锁屏布局
@@ -360,9 +368,10 @@ class FloatDeckRenderer(
     fun onDrawFrame(gl: javax.microedition.khronos.opengles.GL10?) {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
 
+        updateFrameDelta()
         updateTransition()
 
-        swayTimeSeconds += 0.016f
+        swayTimeSeconds += frameDeltaSeconds
         updateInertia()
 
         // 横竖屏切换时重新加载模板
@@ -376,6 +385,18 @@ class FloatDeckRenderer(
         drawPortraits()
     }
 
+    /** Computes the frame delta (s) from the previous frame; clamped to avoid jumps after long stalls. */
+    internal fun updateFrameDelta() {
+        val now = System.nanoTime()
+        frameDeltaSeconds =
+            if (lastFrameNanos == 0L) {
+                0.016f
+            } else {
+                ((now - lastFrameNanos) / 1_000_000_000.0).toFloat().coerceIn(0f, 0.1f)
+            }
+        lastFrameNanos = now
+    }
+
     /**
      * Advance the lock/unlock transition state (pure CPU, callable without rendering).
      */
@@ -386,15 +407,18 @@ class FloatDeckRenderer(
         }
 
         if (isWaitingForUnlock) {
-            unlockDelayTimer += 0.016f
+            unlockDelayTimer += frameDeltaSeconds
             if (unlockDelayTimer >= unlockDelaySeconds) {
                 isWaitingForUnlock = false
                 targetTransition = 0f
             }
         }
 
+        // Exponential approach with 0.2s time constant; matches the old
+        // 8%-per-frame convergence at 60fps
         val diff = targetTransition - transitionProgress
-        transitionProgress += if (abs(diff) < 0.01f) diff else diff * 0.08f
+        transitionProgress +=
+            if (abs(diff) < 0.01f) diff else diff * (1f - exp(-frameDeltaSeconds / 0.2f))
     }
 
     private fun updateInertia() {
@@ -403,10 +427,13 @@ class FloatDeckRenderer(
 
         portraitStates.forEach { state ->
             if (state.velocityX != 0f || state.velocityY != 0f) {
-                state.offsetX += state.velocityX
-                state.offsetY += state.velocityY
-                state.velocityX *= 0.92f
-                state.velocityY *= 0.92f
+                state.offsetX += state.velocityX * frameDeltaSeconds * 60f
+                state.offsetY += state.velocityY * frameDeltaSeconds * 60f
+                // Framerate-normalized damping: exp(-5t) equals the old
+                // per-frame ×0.92 at 60fps
+                val damping = exp(-frameDeltaSeconds * 5.0f)
+                state.velocityX *= damping
+                state.velocityY *= damping
                 if (abs(state.velocityX) < 0.5f) state.velocityX = 0f
                 if (abs(state.velocityY) < 0.5f) state.velocityY = 0f
             }

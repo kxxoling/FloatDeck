@@ -2,6 +2,7 @@ package app.floatdeck.gl
 
 import android.content.Context
 import io.mockk.mockk
+import kotlin.math.exp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -30,6 +31,12 @@ class FloatDeckRendererTransitionTest {
     private val context: Context = mockk(relaxed = true)
     private lateinit var renderer: FloatDeckRenderer
 
+    /**
+     * Expected per-call progress at the default 16ms frame delta:
+     * 1 - exp(-0.016 / 0.2) ≈ 7.7 % (exponential approach, 0.2s time constant).
+     */
+    private val expectedStep = 1f - exp(-0.016f / 0.2f)
+
     @BeforeEach
     fun setUp() {
         renderer = FloatDeckRenderer(context)
@@ -37,7 +44,7 @@ class FloatDeckRendererTransitionTest {
 
     /**
      * Consume the one-time isFirstFrame snap so subsequent calls exercise
-     * the normal lerp path (8 % per call).
+     * the normal lerp path.
      */
     private fun consumeFirstFrame() {
         renderer.updateTransition()
@@ -82,14 +89,14 @@ class FloatDeckRendererTransitionTest {
     // ==================================================================
 
     @Test
-    fun `updateTransition moves 8 percent toward target per call`() {
+    fun `updateTransition moves one 16ms step toward target per call`() {
         consumeFirstFrame()
         renderer.transitionProgress = 0f
         renderer.targetTransition = 1f
 
         renderer.updateTransition()
 
-        assertEquals(0.08f, renderer.transitionProgress, 0.001f)
+        assertEquals(expectedStep, renderer.transitionProgress, 0.0005f)
     }
 
     @Test
@@ -240,6 +247,6 @@ class FloatDeckRendererTransitionTest {
         renderer.targetTransition = 1f
         renderer.updateTransition()
 
-        assertEquals(0.08f, renderer.transitionProgress, 0.001f)
+        assertEquals(expectedStep, renderer.transitionProgress, 0.0005f)
     }
 }

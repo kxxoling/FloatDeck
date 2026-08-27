@@ -27,6 +27,7 @@ private const val PREFS_NAME = "settings_prefs"
 private const val KEY_TEMPLATE_ID = "template_id"
 private const val KEY_PORTRAIT_EFFECT = "portrait_effect"
 private const val KEY_DRAG_ENABLED = "drag_enabled"
+private const val KEY_FRAME_RATE_MODE = "frame_rate_mode"
 
 /**
  * FloatDeck 动态壁纸服务入口。
@@ -53,6 +54,11 @@ class FloatDeckWallpaperService : WallpaperService() {
                     val enabled = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .getBoolean(KEY_DRAG_ENABLED, true)
                     if (!enabled) renderer.resetDragOffsets()
+                }
+                KEY_FRAME_RATE_MODE -> {
+                    val mode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
+                    glThread?.updateFrameRatePreference(mode)
                 }
             }
         }
@@ -295,16 +301,49 @@ class GLWallpaperThread(
     /** 标记 EGL/渲染器资源已就绪，finally 中据此决定是否调用 renderer.release()。 */
     private var glReady = false
 
+    // ------------------------------------------------------------------
+    // Display pacing state (polled on this thread ~every 0.5s)
+    // ------------------------------------------------------------------
+
+    /** Default display: source of the refresh rate; also votes for high refresh. */
+    private val display: android.view.Display? by lazy {
+        (context.getSystemService(android.hardware.display.DisplayManager::class.java))
+            .getDisplay(android.view.Display.DEFAULT_DISPLAY)
+    }
+
+    /** Frame interval matching the display refresh rate; 60fps until first poll. */
+    @Volatile
+    private var fullFrameIntervalNanos = FRAME_INTERVAL_NANOS
+
+    private var frameCounter = 0
+
+    /** Last refresh rate voted for via Surface.setFrameRate; -1 = none yet. */
+    private var lastRequestedRefreshFps = -1f
+
+    /** Frame rate mode from settings: auto | half | third | quarter (of max refresh). */
+    @Volatile
+    private var preferredFrameRateMode = "auto"
+
     fun requestStop() {
         isRunning = false
     }
 
     fun setRendering(enabled: Boolean) {
         rendering = enabled
+        // Wake the loop promptly when becoming visible again: it may be in
+        // a long screen-off sleep.
+        if (enabled) interrupt()
     }
 
     fun requestReload() {
         reloadRequested = true
+    }
+
+    /** Applies a frame-rate mode from settings (auto | half | third | quarter) on the next poll. */
+    fun updateFrameRatePreference(mode: String) {
+        preferredFrameRateMode = mode
+        // Nudge the counter so the next frame triggers an immediate poll
+        frameCounter = DISPLAY_POLL_INTERVAL_FRAMES - 1
     }
 
     override fun run() {
@@ -330,6 +369,14 @@ class GLWallpaperThread(
                 handleSurfaceChanges()
 
                 if (rendering && eglSurface != null) {
+                    // Refresh display pacing state (refresh rate,
+                    // high-refresh vote) every ~0.5s; per-frame queries
+                    // are not free.
+                    frameCounter++
+                    if (frameCounter % DISPLAY_POLL_INTERVAL_FRAMES == 0) {
+                        pollDisplayState()
+                    }
+
                     // 平滑插值传感器值（低通滤波，系数 0.08）
                     renderer.smoothedRollX +=
                         (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
@@ -347,8 +394,21 @@ class GLWallpaperThread(
 
                     egl10?.eglSwapBuffers(eglDisplay, eglSurface)
                 } else if (!rendering) {
-                    // Screen off: advance transition state only, no GPU rendering
+                    // Screen off: advance transition state only, no GPU
+                    // rendering. Nobody sees intermediate frames while the
+                    // screen is off, so advance with coarse sleeps instead
+                    // of the render pace, and settle into a ~1Hz poll once
+                    // the transition is done - otherwise the loop keeps
+                    // waking 60x/s for nothing all night. A wake nudge from
+                    // setRendering interrupts the sleep so screen-on still
+                    // renders immediately.
+                    renderer.updateFrameDelta()
                     renderer.updateTransition()
+                    val settled =
+                        kotlin.math.abs(renderer.targetTransition - renderer.transitionProgress) < 0.005f
+                    sleepQuietly(
+                        if (settled) SCREEN_OFF_SETTLED_SLEEP_MS else SCREEN_OFF_ACTIVE_SLEEP_MS,
+                    )
                 }
                 // While eglSurface is not rebuilt yet (surfaceLost/dirty
                 // pending), just wait
@@ -374,16 +434,75 @@ class GLWallpaperThread(
         }
     }
 
+    /** Refreshes pacing state from the display. */
+    private fun pollDisplayState() {
+        val d = display ?: return
+        val refresh = d.refreshRate.toInt().coerceIn(30, 240)
+        val maxHz = d.supportedModes.maxOfOrNull { it.refreshRate.toInt() } ?: refresh
+        val preferred = when (preferredFrameRateMode) {
+            "half" -> maxHz / 2
+            "third" -> maxHz / 3
+            "quarter" -> maxHz / 4
+            else -> -1
+        }
+        // Pace at the preferred rate but never faster than the panel currently
+        // refreshes; the vote below asks the panel to move toward it. Fraction
+        // rates divide the max refresh evenly, so even a panel still running
+        // at max presents each pace tick at a whole number of vblanks.
+        val paceFps = if (preferred > 0) minOf(preferred, refresh) else refresh
+        fullFrameIntervalNanos = 1_000_000_000L / paceFps
+        requestHighRefreshRate(d, preferred.takeIf { it > 0 })
+    }
+
+    /**
+     * Votes for the panel's highest supported refresh rate via
+     * Surface.setFrameRate. Without a vote the compositor keeps the panel at
+     * its default mode (60Hz on the test device) even when higher modes are
+     * available; the vote lets the panel ramp up while the wallpaper renders.
+     */
+    private fun requestHighRefreshRate(
+        d: android.view.Display,
+        preferredFps: Int?,
+    ) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
+        val desired =
+            preferredFps?.toFloat()
+                ?: d.supportedModes.maxOfOrNull { it.refreshRate }
+                ?: d.refreshRate
+        if (desired == lastRequestedRefreshFps) return
+        val surface = surfaceHolder.surface ?: return
+        runCatching {
+            surface.setFrameRate(
+                desired,
+                android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT,
+            )
+            lastRequestedRefreshFps = desired
+        }.onFailure { Log.w(TAG, "setFrameRate($desired) failed", it) }
+    }
+
     /** 根据本帧已耗时计算剩余时间睡眠，接近目标帧率且不浪费 CPU。 */
     private fun paceFrame(frameStartNanos: Long) {
         val elapsed = System.nanoTime() - frameStartNanos
-        val sleepMs = sleepMillisForFrame(elapsed, FRAME_INTERVAL_NANOS)
-        if (sleepMs > 0) {
-            try {
-                Thread.sleep(sleepMs)
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
-            }
+        val interval = fullFrameIntervalNanos
+        // Scale the present margin with the interval so high refresh rates
+        // still leave room for draw + submission.
+        val margin =
+            (interval / 3).coerceIn(MIN_PRESENT_MARGIN_NANOS, MAX_PRESENT_MARGIN_NANOS)
+        // The coarse screen-off sleeps make elapsed exceed the interval, so
+        // this naturally becomes a no-op right after a screen-off sleep.
+        sleepQuietly(sleepMillisForFrame(elapsed, interval, margin))
+    }
+
+    /**
+     * Sleeps, swallowing interrupts: the only interrupt source is our own
+     * wake-up nudge from setRendering, and a stale interrupt flag would make
+     * every subsequent sleep return immediately (busy loop).
+     */
+    private fun sleepQuietly(millis: Long) {
+        if (millis <= 0) return
+        try {
+            Thread.sleep(millis)
+        } catch (_: InterruptedException) {
         }
     }
 
@@ -477,6 +596,7 @@ class GLWallpaperThread(
                 "holo" -> 2
                 else -> 0
             }
+        preferredFrameRateMode = prefs.getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
 
         // 尝试从远程模板加载，再从 assets 加载
         val remoteLoader = RemoteTemplateLoader(context)
@@ -608,16 +728,38 @@ class GLWallpaperThread(
         private const val TAG = "GLWallpaperThread"
         private const val TARGET_FPS = 60L
         private const val FRAME_INTERVAL_NANOS = 1_000_000_000L / TARGET_FPS
+
         private const val NANOS_PER_MS = 1_000_000L
 
+        /** Poll interval (frames) for refreshing pacing state (~0.5s at 60fps). */
+        private const val DISPLAY_POLL_INTERVAL_FRAMES = 30
+
+        /** Screen-off sleep cadence: coarse while the transition advances, ~1Hz once settled. */
+        private const val SCREEN_OFF_ACTIVE_SLEEP_MS = 100L
+        private const val SCREEN_OFF_SETTLED_SLEEP_MS = 1000L
+
         /**
-         * 计算本帧应睡眠的毫秒数：用目标帧间隔减去已耗时的纳秒，下限为 0。
+         * Bounds for the present margin: subtracted from the sleep target so
+         * the *next* frame's draw + buffer submission lands before the
+         * intended vblank. Waking exactly at the frame boundary means the
+         * queue happens after it, the presentation slips a whole vblank
+         * period, and the pace judders (e.g. 33/50ms alternation for a 30fps
+         * target on a 60Hz panel).
+         */
+        private const val MIN_PRESENT_MARGIN_NANOS = 1L * NANOS_PER_MS
+        private const val MAX_PRESENT_MARGIN_NANOS = 3L * NANOS_PER_MS
+
+        /**
+         * 计算本帧应睡眠的毫秒数：用目标帧间隔减去已耗时与呈现余量的纳秒，下限为 0。
          * 提取为纯函数便于单测。
          */
         internal fun sleepMillisForFrame(
             elapsedNanos: Long,
             frameIntervalNanos: Long = FRAME_INTERVAL_NANOS,
-        ): Long = ((frameIntervalNanos - elapsedNanos) / NANOS_PER_MS).coerceAtLeast(0L)
+            presentMarginNanos: Long = MAX_PRESENT_MARGIN_NANOS,
+        ): Long =
+            ((frameIntervalNanos - presentMarginNanos - elapsedNanos) / NANOS_PER_MS)
+                .coerceAtLeast(0L)
     }
 
     private var egl10: EGL10? = null

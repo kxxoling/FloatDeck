@@ -28,6 +28,7 @@ class SettingsRepository(
         private val KEY_WALLPAPER_URI = stringPreferencesKey("wallpaper_uri")
         private val KEY_PORTRAIT_EFFECT = stringPreferencesKey("portrait_effect")
         private val KEY_DRAG_ENABLED = booleanPreferencesKey("drag_enabled")
+        private val KEY_FRAME_RATE_MODE = stringPreferencesKey("frame_rate_mode")
     }
 
     /** 当前选中的模板 ID。 */
@@ -94,5 +95,21 @@ class SettingsRepository(
                 prefs.remove(KEY_WALLPAPER_URI)
             }
         }
+    }
+
+    /** Render frame rate mode: auto | half | third | quarter (of max refresh). */
+    val frameRateMode: Flow<String> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_FRAME_RATE_MODE] ?: "auto"
+        }
+
+    /** Save the frame rate mode. */
+    suspend fun setFrameRateMode(mode: String) {
+        context.dataStore.edit { it[KEY_FRAME_RATE_MODE] = mode }
+        context
+            .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putString("frame_rate_mode", mode)
+            .apply()
     }
 }
