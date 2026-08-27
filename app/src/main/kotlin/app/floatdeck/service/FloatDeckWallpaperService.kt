@@ -295,6 +295,25 @@ class GLWallpaperThread(
     /** 标记 EGL/渲染器资源已就绪，finally 中据此决定是否调用 renderer.release()。 */
     private var glReady = false
 
+    // ------------------------------------------------------------------
+    // Display pacing state (polled on this thread ~every 0.5s)
+    // ------------------------------------------------------------------
+
+    /** Default display: source of the refresh rate; also votes for high refresh. */
+    private val display: android.view.Display? by lazy {
+        (context.getSystemService(android.hardware.display.DisplayManager::class.java))
+            .getDisplay(android.view.Display.DEFAULT_DISPLAY)
+    }
+
+    /** Frame interval matching the display refresh rate; 60fps until first poll. */
+    @Volatile
+    private var fullFrameIntervalNanos = FRAME_INTERVAL_NANOS
+
+    private var frameCounter = 0
+
+    /** Last refresh rate voted for via Surface.setFrameRate; -1 = none yet. */
+    private var lastRequestedRefreshFps = -1f
+
     fun requestStop() {
         isRunning = false
     }
@@ -330,6 +349,14 @@ class GLWallpaperThread(
                 handleSurfaceChanges()
 
                 if (rendering && eglSurface != null) {
+                    // Refresh display pacing state (refresh rate,
+                    // high-refresh vote) every ~0.5s; per-frame queries
+                    // are not free.
+                    frameCounter++
+                    if (frameCounter % DISPLAY_POLL_INTERVAL_FRAMES == 0) {
+                        pollDisplayState()
+                    }
+
                     // 平滑插值传感器值（低通滤波，系数 0.08）
                     renderer.smoothedRollX +=
                         (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
@@ -374,10 +401,43 @@ class GLWallpaperThread(
         }
     }
 
+    /** Refreshes pacing state from the display and power manager. */
+    private fun pollDisplayState() {
+        val d = display ?: return
+        val fps = d.refreshRate.toInt().coerceIn(30, 240)
+        fullFrameIntervalNanos = 1_000_000_000L / fps
+        requestHighRefreshRate(d)
+    }
+
+    /**
+     * Votes for the panel's highest supported refresh rate via
+     * Surface.setFrameRate. Without a vote the compositor keeps the panel at
+     * its default mode (60Hz on the test device) even when higher modes are
+     * available; the vote lets the panel ramp up while the wallpaper renders.
+     */
+    private fun requestHighRefreshRate(d: android.view.Display) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
+        val desired = d.supportedModes.maxOfOrNull { it.refreshRate } ?: d.refreshRate
+        if (desired == lastRequestedRefreshFps) return
+        val surface = surfaceHolder.surface ?: return
+        runCatching {
+            surface.setFrameRate(
+                desired,
+                android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT,
+            )
+            lastRequestedRefreshFps = desired
+        }.onFailure { Log.w(TAG, "setFrameRate($desired) failed", it) }
+    }
+
     /** 根据本帧已耗时计算剩余时间睡眠，接近目标帧率且不浪费 CPU。 */
     private fun paceFrame(frameStartNanos: Long) {
         val elapsed = System.nanoTime() - frameStartNanos
-        val sleepMs = sleepMillisForFrame(elapsed, FRAME_INTERVAL_NANOS)
+        val interval = fullFrameIntervalNanos
+        // Scale the present margin with the interval so high refresh rates
+        // still leave room for draw + submission.
+        val margin =
+            (interval / 3).coerceIn(MIN_PRESENT_MARGIN_NANOS, MAX_PRESENT_MARGIN_NANOS)
+        val sleepMs = sleepMillisForFrame(elapsed, interval, margin)
         if (sleepMs > 0) {
             try {
                 Thread.sleep(sleepMs)
@@ -608,16 +668,22 @@ class GLWallpaperThread(
         private const val TAG = "GLWallpaperThread"
         private const val TARGET_FPS = 60L
         private const val FRAME_INTERVAL_NANOS = 1_000_000_000L / TARGET_FPS
+
         private const val NANOS_PER_MS = 1_000_000L
 
+        /** Poll interval (frames) for refreshing pacing state (~0.5s at 60fps). */
+        private const val DISPLAY_POLL_INTERVAL_FRAMES = 30
+
         /**
-         * Safety margin subtracted from the sleep target so the *next* frame's
-         * draw + buffer submission lands before the intended vblank. Waking
-         * exactly at the frame boundary means the queue happens after it, the
-         * presentation slips a whole vblank period, and the pace judders
-         * (e.g. 33/50ms alternation for a 30fps target on a 60Hz panel).
+         * Bounds for the present margin: subtracted from the sleep target so
+         * the *next* frame's draw + buffer submission lands before the
+         * intended vblank. Waking exactly at the frame boundary means the
+         * queue happens after it, the presentation slips a whole vblank
+         * period, and the pace judders (e.g. 33/50ms alternation for a 30fps
+         * target on a 60Hz panel).
          */
-        private const val PRESENT_MARGIN_NANOS = 3L * NANOS_PER_MS
+        private const val MIN_PRESENT_MARGIN_NANOS = 1L * NANOS_PER_MS
+        private const val MAX_PRESENT_MARGIN_NANOS = 3L * NANOS_PER_MS
 
         /**
          * 计算本帧应睡眠的毫秒数：用目标帧间隔减去已耗时与呈现余量的纳秒，下限为 0。
@@ -626,7 +692,7 @@ class GLWallpaperThread(
         internal fun sleepMillisForFrame(
             elapsedNanos: Long,
             frameIntervalNanos: Long = FRAME_INTERVAL_NANOS,
-            presentMarginNanos: Long = PRESENT_MARGIN_NANOS,
+            presentMarginNanos: Long = MAX_PRESENT_MARGIN_NANOS,
         ): Long =
             ((frameIntervalNanos - presentMarginNanos - elapsedNanos) / NANOS_PER_MS)
                 .coerceAtLeast(0L)
