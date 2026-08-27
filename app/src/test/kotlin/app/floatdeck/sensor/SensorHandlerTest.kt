@@ -1,5 +1,7 @@
 package app.floatdeck.sensor
 
+import android.hardware.SensorManager
+import android.view.Surface
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -40,5 +42,36 @@ class SensorHandlerTest {
     fun `empty array returns empty`() {
         val empty = FloatArray(0)
         assertSame(empty, SensorHandler.safeRotationValues(empty))
+    }
+
+    @Test
+    fun `remap axes follow the documented display rotation table`() {
+        assertArrayEquals(
+            intArrayOf(SensorManager.AXIS_X, SensorManager.AXIS_Y),
+            SensorHandler.remapAxesForRotation(Surface.ROTATION_0),
+        )
+        assertArrayEquals(
+            intArrayOf(SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X),
+            SensorHandler.remapAxesForRotation(Surface.ROTATION_90),
+        )
+        assertArrayEquals(
+            intArrayOf(SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y),
+            SensorHandler.remapAxesForRotation(Surface.ROTATION_180),
+        )
+        assertArrayEquals(
+            intArrayOf(SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X),
+            SensorHandler.remapAxesForRotation(Surface.ROTATION_270),
+        )
+    }
+
+    @Test
+    fun `accel components are projected onto screen axes per rotation`() {
+        val gx = 0.25f
+        val gy = 0.5f
+
+        assertArrayEquals(floatArrayOf(gx, gy), SensorHandler.remapAccelForRotation(gx, gy, Surface.ROTATION_0))
+        assertArrayEquals(floatArrayOf(gy, -gx), SensorHandler.remapAccelForRotation(gx, gy, Surface.ROTATION_90))
+        assertArrayEquals(floatArrayOf(-gx, -gy), SensorHandler.remapAccelForRotation(gx, gy, Surface.ROTATION_180))
+        assertArrayEquals(floatArrayOf(-gy, gx), SensorHandler.remapAccelForRotation(gx, gy, Surface.ROTATION_270))
     }
 }

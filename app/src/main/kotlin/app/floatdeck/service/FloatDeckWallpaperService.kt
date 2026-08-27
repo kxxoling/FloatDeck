@@ -295,6 +295,14 @@ class GLWallpaperThread(
     /** 标记 EGL/渲染器资源已就绪，finally 中据此决定是否调用 renderer.release()。 */
     private var glReady = false
 
+    /** Default display, polled for rotation to keep sensor axes in screen frame. */
+    private val display: android.view.Display? by lazy {
+        (context.getSystemService(android.hardware.display.DisplayManager::class.java))
+            .getDisplay(android.view.Display.DEFAULT_DISPLAY)
+    }
+
+    private var frameCounter = 0
+
     fun requestStop() {
         isRunning = false
     }
@@ -318,6 +326,9 @@ class GLWallpaperThread(
         var frameStart: Long
         try {
             renderer.onSurfaceCreated(null, null)
+            // Seed the display rotation immediately so sensor remapping is
+            // correct from the first frame, not only after the first poll
+            display?.let { sensorHandler.screenRotation = it.rotation }
             // Initial size: the engine's onSurfaceChanged may have fired
             // before this thread started (notifications dropped), so fall
             // back to the holder's current frame to keep the viewport and
@@ -330,6 +341,14 @@ class GLWallpaperThread(
                 handleSurfaceChanges()
 
                 if (rendering && eglSurface != null) {
+                    // Refresh the display rotation used for sensor remapping.
+                    // Polled every ~0.5s instead of per frame: Display.getRotation()
+                    // is not free, and orientation changes take effect instantly.
+                    frameCounter++
+                    if (frameCounter % ROTATION_POLL_INTERVAL_FRAMES == 0) {
+                        display?.let { sensorHandler.screenRotation = it.rotation }
+                    }
+
                     // 平滑插值传感器值（低通滤波，系数 0.08）
                     renderer.smoothedRollX +=
                         (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
@@ -608,6 +627,9 @@ class GLWallpaperThread(
         private const val TAG = "GLWallpaperThread"
         private const val TARGET_FPS = 60L
         private const val FRAME_INTERVAL_NANOS = 1_000_000_000L / TARGET_FPS
+
+        /** Poll interval (frames) for refreshing the display rotation (~0.5s at 60fps). */
+        private const val ROTATION_POLL_INTERVAL_FRAMES = 30
         private const val NANOS_PER_MS = 1_000_000L
 
         /**

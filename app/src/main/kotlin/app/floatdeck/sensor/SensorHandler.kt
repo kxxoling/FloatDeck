@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.view.Surface
 import kotlin.math.sqrt
 
 /**
@@ -24,6 +25,35 @@ class SensorHandler(
          */
         internal fun safeRotationValues(values: FloatArray): FloatArray =
             if (values.size > 4) values.copyOf(4) else values
+
+        /**
+         * The (axisX, axisY) pair used with [SensorManager.remapCoordinateSystem]
+         * to rotate device-frame data into screen frame, per Android docs.
+         */
+        internal fun remapAxesForRotation(rotation: Int): IntArray =
+            when (rotation) {
+                Surface.ROTATION_90 -> intArrayOf(SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X)
+                Surface.ROTATION_180 -> intArrayOf(SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y)
+                Surface.ROTATION_270 -> intArrayOf(SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X)
+                else -> intArrayOf(SensorManager.AXIS_X, SensorManager.AXIS_Y)
+            }
+
+        /**
+         * Projects device-frame gravity components (gx, gy) onto the screen
+         * axes for the given rotation, returning (screenRollX, screenPitchY).
+         * Pure function so the axis table can be unit tested.
+         */
+        internal fun remapAccelForRotation(
+            gx: Float,
+            gy: Float,
+            rotation: Int,
+        ): FloatArray =
+            when (rotation) {
+                Surface.ROTATION_90 -> floatArrayOf(gy, -gx)
+                Surface.ROTATION_180 -> floatArrayOf(-gx, -gy)
+                Surface.ROTATION_270 -> floatArrayOf(-gy, gx)
+                else -> floatArrayOf(gx, gy)
+            }
     }
 
     /** 左右倾斜值（roll），约 -1 ~ 1 */
@@ -33,6 +63,10 @@ class SensorHandler(
     /** 前后倾斜值（pitch），约 -1 ~ 1 */
     var pitchY = 0f
         private set
+
+    /** Current display rotation (Surface.ROTATION_*); written by the render thread. */
+    @Volatile
+    var screenRotation = Surface.ROTATION_0
 
     private val sensorManager by lazy {
         context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -75,25 +109,41 @@ class SensorHandler(
 
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
-            // 旋转矢量 / 游戏旋转矢量：通过旋转矩阵 → 欧拉角提取 roll 和 pitch
+            // 旋转矢量 / 游戏旋转矢量：旋转矩阵重映射到屏幕坐标系后，直接取世界"上"方向
+            // 在屏幕坐标的分量作为倾斜量。平板/手机直立握持时两个输出都接近 0（无偏置），
+            // 不像 getOrientation 的欧拉角在直立姿态下会饱和在 ±60°~90°。
             Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GAME_ROTATION_VECTOR -> {
                 val rotationMatrix = FloatArray(9)
                 SensorManager.getRotationMatrixFromVector(
                     rotationMatrix,
                     safeRotationValues(event.values),
                 )
-                val orientation = FloatArray(3)
-                SensorManager.getOrientation(rotationMatrix, orientation)
-                rollX = orientation[2] // 弧度制 roll
-                pitchY = orientation[1] // 弧度制 pitch
+                val axes = remapAxesForRotation(screenRotation)
+                val screenMatrix = FloatArray(9)
+                if (!SensorManager.remapCoordinateSystem(
+                        rotationMatrix,
+                        axes[0],
+                        axes[1],
+                        screenMatrix,
+                    )
+                ) {
+                    return
+                }
+                // screenMatrix maps screen→world; its third row (elements 6/7/8)
+                // holds the world-up vector in screen coordinates:
+                //   R'[6] = up·screenX, R'[7] = up·screenY, R'[8] = up·screenZ
+                pitchY = -screenMatrix[6] // screen bank: right edge dipping → positive
+                rollX = -screenMatrix[8] // front/back tilt: leaning back → negative
             }
             // 加速度计回退：用重力方向归一化估算倾斜
             Sensor.TYPE_ACCELEROMETER -> {
                 val g = event.values
                 val norm = sqrt(g[0] * g[0] + g[1] * g[1] + g[2] * g[2])
                 if (norm > 0.1f) {
-                    rollX = g[0] / norm
-                    pitchY = g[1] / norm
+                    val remapped = remapAccelForRotation(g[0] / norm, g[1] / norm, screenRotation)
+                    // Screen-Z gravity equals device-Z gravity for all four rotations.
+                    pitchY = remapped[0]
+                    rollX = g[2] / norm
                 }
             }
         }
