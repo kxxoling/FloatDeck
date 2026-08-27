@@ -418,7 +418,7 @@ class GLWallpaperThread(
         }
     }
 
-    /** Refreshes pacing state from the display and power manager. */
+    /** Refreshes pacing state from the display. */
     private fun pollDisplayState() {
         val d = display ?: return
         val refresh = d.refreshRate.toInt().coerceIn(30, 240)
