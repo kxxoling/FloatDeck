@@ -26,6 +26,7 @@ private const val TAG = "FloatDeckWallpaper"
 private const val PREFS_NAME = "settings_prefs"
 private const val KEY_TEMPLATE_ID = "template_id"
 private const val KEY_PORTRAIT_EFFECT = "portrait_effect"
+private const val KEY_DRAG_ENABLED = "drag_enabled"
 
 /**
  * FloatDeck 动态壁纸服务入口。
@@ -46,8 +47,13 @@ class FloatDeckWallpaperService : WallpaperService() {
          * 使用强引用字段，避免 SharedPreferences 内部弱引用导致被 GC。
          */
         private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == KEY_TEMPLATE_ID || key == KEY_PORTRAIT_EFFECT) {
-                glThread?.requestReload()
+            when (key) {
+                KEY_TEMPLATE_ID, KEY_PORTRAIT_EFFECT -> glThread?.requestReload()
+                KEY_DRAG_ENABLED -> {
+                    val enabled = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getBoolean(KEY_DRAG_ENABLED, true)
+                    if (!enabled) renderer.resetDragOffsets()
+                }
             }
         }
 
@@ -142,15 +148,19 @@ class FloatDeckWallpaperService : WallpaperService() {
         }
 
         override fun onTouchEvent(event: MotionEvent) {
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    renderer.onTouchDown(event.x, event.y)
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    renderer.onTouchMove(event.x, event.y)
-                }
-                MotionEvent.ACTION_UP -> {
-                    renderer.onTouchUp()
+            val dragEnabled = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_DRAG_ENABLED, true)
+            if (dragEnabled) {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        renderer.onTouchDown(event.x, event.y)
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        renderer.onTouchMove(event.x, event.y)
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        renderer.onTouchUp()
+                    }
                 }
             }
             super.onTouchEvent(event)

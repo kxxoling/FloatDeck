@@ -38,6 +38,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -112,6 +113,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     var templateId by remember { mutableStateOf("") }
     var selectedEffect by remember { mutableStateOf(PortraitEffect.NONE) }
+    var dragEnabled by remember { mutableStateOf(true) }
     var remoteTemplates by remember { mutableStateOf<List<TemplateDef>>(emptyList()) }
     var urlText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -134,6 +136,11 @@ fun SettingsScreen(
     remember {
         scope.launch {
             repo.portraitEffect.collect { selectedEffect = it }
+        }
+    }
+    remember {
+        scope.launch {
+            repo.dragEnabled.collect { dragEnabled = it }
         }
     }
 
@@ -367,6 +374,23 @@ fun SettingsScreen(
                     Text(
                         stringResource(effect.labelResId),
                         modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+
+            // Portrait drag toggle
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(R.string.drag_enabled),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = dragEnabled,
+                        onCheckedChange = { scope.launch { repo.setDragEnabled(it) } },
                     )
                 }
             }
