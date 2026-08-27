@@ -330,6 +330,9 @@ class GLWallpaperThread(
 
     fun setRendering(enabled: Boolean) {
         rendering = enabled
+        // Wake the loop promptly when becoming visible again: it may be in
+        // a long screen-off sleep.
+        if (enabled) interrupt()
     }
 
     fun requestReload() {
@@ -391,8 +394,21 @@ class GLWallpaperThread(
 
                     egl10?.eglSwapBuffers(eglDisplay, eglSurface)
                 } else if (!rendering) {
-                    // Screen off: advance transition state only, no GPU rendering
+                    // Screen off: advance transition state only, no GPU
+                    // rendering. Nobody sees intermediate frames while the
+                    // screen is off, so advance with coarse sleeps instead
+                    // of the render pace, and settle into a ~1Hz poll once
+                    // the transition is done - otherwise the loop keeps
+                    // waking 60x/s for nothing all night. A wake nudge from
+                    // setRendering interrupts the sleep so screen-on still
+                    // renders immediately.
+                    renderer.updateFrameDelta()
                     renderer.updateTransition()
+                    val settled =
+                        kotlin.math.abs(renderer.targetTransition - renderer.transitionProgress) < 0.005f
+                    sleepQuietly(
+                        if (settled) SCREEN_OFF_SETTLED_SLEEP_MS else SCREEN_OFF_ACTIVE_SLEEP_MS,
+                    )
                 }
                 // While eglSurface is not rebuilt yet (surfaceLost/dirty
                 // pending), just wait
@@ -472,13 +488,21 @@ class GLWallpaperThread(
         // still leave room for draw + submission.
         val margin =
             (interval / 3).coerceIn(MIN_PRESENT_MARGIN_NANOS, MAX_PRESENT_MARGIN_NANOS)
-        val sleepMs = sleepMillisForFrame(elapsed, interval, margin)
-        if (sleepMs > 0) {
-            try {
-                Thread.sleep(sleepMs)
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
-            }
+        // The coarse screen-off sleeps make elapsed exceed the interval, so
+        // this naturally becomes a no-op right after a screen-off sleep.
+        sleepQuietly(sleepMillisForFrame(elapsed, interval, margin))
+    }
+
+    /**
+     * Sleeps, swallowing interrupts: the only interrupt source is our own
+     * wake-up nudge from setRendering, and a stale interrupt flag would make
+     * every subsequent sleep return immediately (busy loop).
+     */
+    private fun sleepQuietly(millis: Long) {
+        if (millis <= 0) return
+        try {
+            Thread.sleep(millis)
+        } catch (_: InterruptedException) {
         }
     }
 
@@ -709,6 +733,10 @@ class GLWallpaperThread(
 
         /** Poll interval (frames) for refreshing pacing state (~0.5s at 60fps). */
         private const val DISPLAY_POLL_INTERVAL_FRAMES = 30
+
+        /** Screen-off sleep cadence: coarse while the transition advances, ~1Hz once settled. */
+        private const val SCREEN_OFF_ACTIVE_SLEEP_MS = 100L
+        private const val SCREEN_OFF_SETTLED_SLEEP_MS = 1000L
 
         /**
          * Bounds for the present margin: subtracted from the sleep target so

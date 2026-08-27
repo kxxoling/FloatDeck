@@ -385,8 +385,8 @@ class FloatDeckRenderer(
         drawPortraits()
     }
 
-/** Computes the frame delta (s) from the previous frame; clamped to avoid jumps after long stalls. */
-    private fun updateFrameDelta() {
+    /** Computes the frame delta (s) from the previous frame; clamped to avoid jumps after long stalls. */
+    internal fun updateFrameDelta() {
         val now = System.nanoTime()
         frameDeltaSeconds =
             if (lastFrameNanos == 0L) {
