@@ -611,13 +611,25 @@ class GLWallpaperThread(
         private const val NANOS_PER_MS = 1_000_000L
 
         /**
-         * 计算本帧应睡眠的毫秒数：用目标帧间隔减去已耗时的纳秒，下限为 0。
+         * Safety margin subtracted from the sleep target so the *next* frame's
+         * draw + buffer submission lands before the intended vblank. Waking
+         * exactly at the frame boundary means the queue happens after it, the
+         * presentation slips a whole vblank period, and the pace judders
+         * (e.g. 33/50ms alternation for a 30fps target on a 60Hz panel).
+         */
+        private const val PRESENT_MARGIN_NANOS = 3L * NANOS_PER_MS
+
+        /**
+         * 计算本帧应睡眠的毫秒数：用目标帧间隔减去已耗时与呈现余量的纳秒，下限为 0。
          * 提取为纯函数便于单测。
          */
         internal fun sleepMillisForFrame(
             elapsedNanos: Long,
             frameIntervalNanos: Long = FRAME_INTERVAL_NANOS,
-        ): Long = ((frameIntervalNanos - elapsedNanos) / NANOS_PER_MS).coerceAtLeast(0L)
+            presentMarginNanos: Long = PRESENT_MARGIN_NANOS,
+        ): Long =
+            ((frameIntervalNanos - presentMarginNanos - elapsedNanos) / NANOS_PER_MS)
+                .coerceAtLeast(0L)
     }
 
     private var egl10: EGL10? = null
