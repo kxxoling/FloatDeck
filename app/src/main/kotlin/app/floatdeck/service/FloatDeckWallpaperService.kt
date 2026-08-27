@@ -137,6 +137,14 @@ class FloatDeckWallpaperService : WallpaperService() {
             }
         }
 
+        override fun onSurfaceCreated(holder: SurfaceHolder) {
+            super.onSurfaceCreated(holder)
+            // Surface recreated (rotation, wallpaper host change, etc.):
+            // notify the GL thread to rebuild the EGL window surface.
+            // The EGL context is kept, so textures/shaders survive.
+            glThread?.notifySurfaceRecreated()
+        }
+
         override fun onSurfaceChanged(
             holder: SurfaceHolder,
             format: Int,
@@ -144,7 +152,20 @@ class FloatDeckWallpaperService : WallpaperService() {
             height: Int,
         ) {
             super.onSurfaceChanged(holder, format, width, height)
-            renderer.onSurfaceChanged(null, width, height)
+            // Do not call renderer.onSurfaceChanged directly here:
+            // glViewport is a GL call while the EGL context is current on
+            // the GL thread, so it would be silently dropped on the UI
+            // thread. The viewport would then keep the old orientation
+            // after rotation and the scene would only cover a corner of
+            // the screen. Forward to the GL thread instead.
+            glThread?.notifySurfaceChanged(width, height)
+        }
+
+        override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+            super.onSurfaceDestroyed(holder)
+            // Surface is about to become invalid; the GL thread must
+            // release the EGL window surface promptly (context is kept)
+            glThread?.notifySurfaceDestroyed()
         }
 
         override fun onTouchEvent(event: MotionEvent) {
@@ -222,6 +243,52 @@ class GLWallpaperThread(
     @Volatile
     private var reloadRequested = true
 
+    // ------------------------------------------------------------------
+    // Surface lifecycle (notified by the Engine thread, handled here):
+    // On rotation the Surface is typically resized in place - the EGL
+    // window surface follows the native window size, so only the
+    // viewport/projection need updating on this thread (where the context
+    // is current). The EGL surface is rebuilt only when the Surface is
+    // actually destroyed and recreated (a brand-new native window);
+    // rebuilding it on a plain resize would briefly expose an empty
+    // buffer (white flash).
+    // ------------------------------------------------------------------
+
+    /** A new size is pending; apply viewport/projection when convenient. */
+    @Volatile
+    private var sizeDirty = false
+
+    /** The native Surface was destroyed; the EGL window surface must be released. */
+    @Volatile
+    private var surfaceLost = false
+
+    /** A fresh native Surface exists; the EGL window surface must be rebuilt. */
+    @Volatile
+    private var eglRebuildNeeded = false
+
+    @Volatile
+    private var pendingWidth = 0
+
+    @Volatile
+    private var pendingHeight = 0
+
+    fun notifySurfaceRecreated() {
+        eglRebuildNeeded = true
+    }
+
+    fun notifySurfaceChanged(
+        width: Int,
+        height: Int,
+    ) {
+        pendingWidth = width
+        pendingHeight = height
+        sizeDirty = true
+    }
+
+    fun notifySurfaceDestroyed() {
+        surfaceLost = true
+    }
+
     /** Whether the template has been loaded. Stays true across visibility changes since the GL thread is no longer recreated. */
     private var templateLoaded = false
 
@@ -251,10 +318,18 @@ class GLWallpaperThread(
         var frameStart: Long
         try {
             renderer.onSurfaceCreated(null, null)
+            // Initial size: the engine's onSurfaceChanged may have fired
+            // before this thread started (notifications dropped), so fall
+            // back to the holder's current frame to keep the viewport and
+            // projection correct from the very first frame
+            val frame = surfaceHolder.surfaceFrame
+            renderer.onSurfaceChanged(null, frame.width(), frame.height())
             while (isRunning) {
                 frameStart = System.nanoTime()
 
-                if (rendering) {
+                handleSurfaceChanges()
+
+                if (rendering && eglSurface != null) {
                     // 平滑插值传感器值（低通滤波，系数 0.08）
                     renderer.smoothedRollX +=
                         (sensorHandler.rollX - renderer.smoothedRollX) * 0.08f
@@ -271,10 +346,12 @@ class GLWallpaperThread(
                     renderer.onDrawFrame(null)
 
                     egl10?.eglSwapBuffers(eglDisplay, eglSurface)
-                } else {
+                } else if (!rendering) {
                     // Screen off: advance transition state only, no GPU rendering
                     renderer.updateTransition()
                 }
+                // While eglSurface is not rebuilt yet (surfaceLost/dirty
+                // pending), just wait
                 paceFrame(frameStart)
             }
         } catch (e: InterruptedException) {
@@ -308,6 +385,86 @@ class GLWallpaperThread(
                 Thread.currentThread().interrupt()
             }
         }
+    }
+
+    /** Handles surface lifecycle changes: release/rebuild on loss, viewport-only update on resize. */
+    private fun handleSurfaceChanges() {
+        if (surfaceLost) {
+            releaseEglSurface()
+            surfaceLost = false
+        }
+        if ((eglSurface == null || eglRebuildNeeded) && surfaceHolder.surface?.isValid == true) {
+            if (recreateEglSurface()) {
+                eglRebuildNeeded = false
+                sizeDirty = false
+            }
+            // Keep retrying next frame while the surface is not ready yet
+            return
+        }
+        if (sizeDirty && surfaceHolder.surface?.isValid == true) {
+            // In-place resize (typical rotation): the EGL window surface
+            // follows the native window, so only the viewport/projection
+            // need updating - no EGL rebuild, no white flash.
+            applyPendingSize()
+            sizeDirty = false
+        }
+    }
+
+    /** Applies the pending surface size to the renderer (viewport + projection). */
+    private fun applyPendingSize() {
+        val width = pendingWidth
+        val height = pendingHeight
+        if (width > 0 && height > 0) {
+            renderer.onSurfaceChanged(null, width, height)
+        } else {
+            val frame = surfaceHolder.surfaceFrame
+            renderer.onSurfaceChanged(null, frame.width(), frame.height())
+        }
+    }
+
+    /** Unbinds and destroys the EGL window surface; context and display are kept so GL resources survive. */
+    private fun releaseEglSurface() {
+        val egl = egl10 ?: return
+        val display = eglDisplay ?: return
+        runCatching {
+            egl.eglMakeCurrent(
+                display,
+                EGL10.EGL_NO_SURFACE,
+                EGL10.EGL_NO_SURFACE,
+                EGL10.EGL_NO_CONTEXT,
+            )
+            eglSurface?.let { egl.eglDestroySurface(display, it) }
+        }.onFailure { Log.w(TAG, "Failed releasing EGL surface", it) }
+        eglSurface = null
+    }
+
+    /**
+     * Rebuilds the EGL window surface from the holder's current Surface and
+     * updates the viewport/projection. Returns false on failure (surface
+     * not ready yet, etc.); the caller retries on a later frame.
+     */
+    private fun recreateEglSurface(): Boolean {
+        val egl = egl10 ?: return false
+        val display = eglDisplay ?: return false
+        val config = eglConfig ?: return false
+        val context = eglContext ?: return false
+        val surface = surfaceHolder.surface ?: return false
+        if (!surface.isValid) return false
+
+        releaseEglSurface()
+        val newSurface = egl.eglCreateWindowSurface(display, config, surface, null)
+        if (newSurface == null || newSurface == EGL10.EGL_NO_SURFACE) {
+            Log.e(TAG, "eglCreateWindowSurface failed: 0x${egl.eglGetError().toString(16)}")
+            return false
+        }
+        eglSurface = newSurface
+        if (!egl.eglMakeCurrent(display, newSurface, newSurface, context)) {
+            Log.e(TAG, "eglMakeCurrent failed after recreation: 0x${egl.eglGetError().toString(16)}")
+            return false
+        }
+
+        applyPendingSize()
+        return true
     }
 
     /** 从设置读取模板 id 与特效并加载到渲染器。 */
@@ -398,6 +555,7 @@ class GLWallpaperThread(
         }
 
         val config = configs[0] ?: return false
+        eglConfig = config
 
         // 请求 OpenGL ES 3.0 上下文
         val contextAttribs =
@@ -464,6 +622,7 @@ class GLWallpaperThread(
 
     private var egl10: EGL10? = null
     private var eglDisplay: EGLDisplay? = null
+    private var eglConfig: EGLConfig? = null
     private var eglContext: EGLContext? = null
     private var eglSurface: javax.microedition.khronos.egl.EGLSurface? = null
 }
