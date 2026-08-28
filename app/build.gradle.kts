@@ -1,3 +1,5 @@
+import java.nio.file.Files
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -9,6 +11,67 @@ ktlint {
     filter {
         exclude("**/generated/**")
     }
+}
+
+// Extracts the GLSL sources embedded in Shaders.kt and validates them with
+// glslangValidator; skips automatically when the binary is missing locally
+// (CI installs glslang-tools to enforce it). Implemented in plain Gradle so
+// no extra interpreter is needed beyond the JVM Gradle already runs on.
+val validateShaders =
+    tasks.register("validateShaders") {
+        group = "verification"
+        description = "Validate GLSL shader sources embedded in Shaders.kt."
+
+        doLast {
+            val shadersFile = File(projectDir, "src/main/kotlin/app/floatdeck/gl/Shaders.kt")
+            val tripleQuote = "\"\"\""
+            val pattern =
+                Regex(
+                    "val\\s+(\\w+?)?(Vertex|Fragment)\\s*=\\s*$tripleQuote(.*?)$tripleQuote",
+                    RegexOption.DOT_MATCHES_ALL,
+                )
+            val shaders = pattern.findAll(shadersFile.readText()).toList()
+            if (shaders.isEmpty()) {
+                throw GradleException("No shader strings found in ${shadersFile.path}")
+            }
+
+            val glslangAvailable =
+                runCatching {
+                    ProcessBuilder("glslangValidator", "--version").start().waitFor() == 0
+                }.getOrDefault(false)
+            if (!glslangAvailable) {
+                logger.lifecycle("glslangValidator not found, skipping GLSL validation")
+                return@doLast
+            }
+
+            val tmp = Files.createTempDirectory("shader-check").toFile()
+            var failed = 0
+            shaders.forEach { match ->
+                val name = match.groups[1]?.value?.ifEmpty { "shader" } ?: "shader"
+                val ext = if (match.groups[2]?.value == "Vertex") "vert" else "frag"
+                val body = match.groups[3]?.value ?: return@forEach
+                val file = File(tmp, "$name.$ext")
+                file.writeText(body.trimStart('\n'))
+                val process =
+                    ProcessBuilder("glslangValidator", file.absolutePath)
+                        .redirectErrorStream(true)
+                        .start()
+                val output = process.inputStream.bufferedReader().readText()
+                if (process.waitFor() != 0) {
+                    failed++
+                    logger.error(output)
+                }
+            }
+            tmp.deleteRecursively()
+            logger.lifecycle("validated ${shaders.size} shaders, $failed failed")
+            if (failed > 0) {
+                throw GradleException("$failed of ${shaders.size} shaders failed GLSL validation")
+            }
+        }
+    }
+
+tasks.named("check") {
+    dependsOn(validateShaders)
 }
 
 android {
