@@ -1,0 +1,7 @@
+• Fixed wallpaper covering only a screen corner after rotating the device.
+• Tilt parallax now follows the gyroscope correctly in any orientation.
+• Animations run at consistent speed on high-refresh-rate screens.
+• Render loop adapts to the panel's refresh rate and votes for high refresh.
+• New Frame rate setting (Auto / fraction-of-max tiers) to balance smoothness and battery.
+• Screen-off power saving: coarse sleeping with ~1Hz idle polling.
+• CI now validates embedded GLSL shaders.
