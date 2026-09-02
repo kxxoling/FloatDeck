@@ -4,6 +4,7 @@
     <string name="wallpaper_description">浮かび上がるキャラクター立ち絵の視差壁紙</string>
     <string name="set_as_live_wallpaper">ライブ壁紙として設定</string>
     <string name="template_title">テンプレート</string>
+    <string name="no_templates_hint">テンプレートがありません。下のインポートから始めましょう。</string>
     <string name="imported_templates">インポート済みテンプレート</string>
     <string name="delete">削除</string>
     <string name="portrait_effect">立ち絵エフェクト</string>

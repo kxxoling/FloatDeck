@@ -332,6 +332,7 @@ fun SettingsScreen(
                 Button(
                     onClick = onSetWallpaper,
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = templateId.isNotBlank(),
                 ) {
                     Text(stringResource(R.string.set_as_live_wallpaper))
                 }
@@ -339,6 +340,16 @@ fun SettingsScreen(
 
             item {
                 Text(stringResource(R.string.template_title), style = MaterialTheme.typography.titleMedium)
+            }
+
+            if (assetTemplates.isEmpty() && remoteTemplates.isEmpty()) {
+                item {
+                    Text(
+                        stringResource(R.string.no_templates_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             items(assetTemplates) { (id, name) ->

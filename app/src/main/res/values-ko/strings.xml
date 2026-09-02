@@ -4,6 +4,7 @@
     <string name="wallpaper_description">떠다니는 캐릭터 일러스트의 시차 배경화면</string>
     <string name="set_as_live_wallpaper">라이브 배경화면으로 설정</string>
     <string name="template_title">템플릿</string>
+    <string name="no_templates_hint">템플릿이 없습니다. 아래에서 가져오기를 시작하세요.</string>
     <string name="imported_templates">가져온 템플릿</string>
     <string name="delete">삭제</string>
     <string name="portrait_effect">일러스트 효과</string>

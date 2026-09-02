@@ -4,6 +4,7 @@
     <string name="wallpaper_description">Parallax wallpaper with floating character portraits</string>
     <string name="set_as_live_wallpaper">Set as Live Wallpaper</string>
     <string name="template_title">Template</string>
+    <string name="no_templates_hint">No templates yet. Import one below to get started.</string>
     <string name="imported_templates">Imported Templates</string>
     <string name="delete">Delete</string>
     <string name="portrait_effect">Portrait Effect</string>
