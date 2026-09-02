@@ -114,6 +114,9 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            // Dev builds install alongside the release app under a separate
+            // applicationId so their data sandboxes stay fully independent.
+            applicationIdSuffix = ".dev"
         }
         release {
             isMinifyEnabled = true
