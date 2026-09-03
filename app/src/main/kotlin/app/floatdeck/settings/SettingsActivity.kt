@@ -659,12 +659,6 @@ fun SettingsScreen(
             item {
                 HorizontalDivider()
                 Text(
-                    "Assets are placeholders. Replace images in assets/templates/ " +
-                        "with your own.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
                     "v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
