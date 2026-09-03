@@ -329,16 +329,6 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                Button(
-                    onClick = onSetWallpaper,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = templateId.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.set_as_live_wallpaper))
-                }
-            }
-
-            item {
                 Text(stringResource(R.string.template_title), style = MaterialTheme.typography.titleMedium)
             }
 
@@ -399,6 +389,16 @@ fun SettingsScreen(
                             Text(stringResource(R.string.delete))
                         }
                     }
+                }
+            }
+
+            item {
+                Button(
+                    onClick = onSetWallpaper,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = templateId.isNotBlank(),
+                ) {
+                    Text(stringResource(R.string.set_as_live_wallpaper))
                 }
             }
 
