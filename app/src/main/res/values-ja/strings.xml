@@ -4,6 +4,7 @@
     <string name="wallpaper_description">浮かび上がるキャラクター立ち絵の視差壁紙</string>
     <string name="set_as_live_wallpaper">ライブ壁紙として設定</string>
     <string name="template_title">テンプレート</string>
+    <string name="no_templates_hint">テンプレートがありません。下のインポートから始めましょう。</string>
     <string name="imported_templates">インポート済みテンプレート</string>
     <string name="delete">削除</string>
     <string name="portrait_effect">立ち絵エフェクト</string>
@@ -11,8 +12,10 @@
     <string name="effect_ice">氷</string>
     <string name="effect_holo">ホログラム</string>
     <string name="drag_enabled">ドラッグを許可</string>
+    <string name="import_section_title">テンプレートをインポート</string>
     <string name="import_remote_template">リモートテンプレートをインポート</string>
     <string name="import_remote_desc">ZIPのURLを入力してテンプレートをダウンロード・インポート</string>
+    <string name="local_import_desc">端末内のZIPファイルまたはフォルダからインポート</string>
     <string name="zip_url_label">ZIPのURL</string>
     <string name="import_button">インポート</string>
     <string name="local_import">ローカルからインポート</string>
@@ -54,6 +57,7 @@
     <string name="crash_logs_cleared">すべてのクラッシュログを消去しました</string>
     <string name="no_crash_logs">クラッシュログはありません</string>
     <string name="check_for_updates">更新を確認</string>
+    <string name="current_version">現在のバージョン：v%1$s</string>
     <string name="already_latest">最新です</string>
     <string name="update_available">更新があります</string>
     <string name="view_release">リリースを見る</string>

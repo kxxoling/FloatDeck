@@ -4,6 +4,7 @@
     <string name="wallpaper_description">떠다니는 캐릭터 일러스트의 시차 배경화면</string>
     <string name="set_as_live_wallpaper">라이브 배경화면으로 설정</string>
     <string name="template_title">템플릿</string>
+    <string name="no_templates_hint">템플릿이 없습니다. 아래에서 가져오기를 시작하세요.</string>
     <string name="imported_templates">가져온 템플릿</string>
     <string name="delete">삭제</string>
     <string name="portrait_effect">일러스트 효과</string>
@@ -11,8 +12,10 @@
     <string name="effect_ice">얼음</string>
     <string name="effect_holo">홀로그램</string>
     <string name="drag_enabled">드래그 허용</string>
+    <string name="import_section_title">템플릿 가져오기</string>
     <string name="import_remote_template">원격 템플릿 가져오기</string>
     <string name="import_remote_desc">ZIP URL을 입력해 템플릿을 다운로드하고 가져옵니다</string>
+    <string name="local_import_desc">기기의 ZIP 파일이나 폴더에서 가져옵니다</string>
     <string name="zip_url_label">ZIP URL</string>
     <string name="import_button">가져오기</string>
     <string name="local_import">로컬에서 가져오기</string>
@@ -54,6 +57,7 @@
     <string name="crash_logs_cleared">모든 크래시 로그를 삭제했습니다</string>
     <string name="no_crash_logs">크래시 로그 없음</string>
     <string name="check_for_updates">업데이트 확인</string>
+    <string name="current_version">현재 버전: v%1$s</string>
     <string name="already_latest">최신 버전입니다</string>
     <string name="update_available">업데이트 있음</string>
     <string name="view_release">릴리스 보기</string>

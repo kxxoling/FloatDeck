@@ -4,6 +4,7 @@
     <string name="wallpaper_description">带有浮动角色立绘的视差壁纸</string>
     <string name="set_as_live_wallpaper">设为动态壁纸</string>
     <string name="template_title">模板</string>
+    <string name="no_templates_hint">暂无模板，请先在下方导入主题</string>
     <string name="imported_templates">已导入的模板</string>
     <string name="delete">删除</string>
     <string name="portrait_effect">立绘特效</string>
@@ -13,8 +14,10 @@
     <string name="drag_enabled">允许拖拽</string>
     <string name="frame_rate_title">帧率</string>
     <string name="frame_rate_auto">自动（最高 %1$d Hz）</string>
+    <string name="import_section_title">导入模板</string>
     <string name="import_remote_template">导入远程模板</string>
     <string name="import_remote_desc">输入 ZIP 包 URL，从远程下载并导入模板</string>
+    <string name="local_import_desc">从本机的 ZIP 文件或文件夹导入</string>
     <string name="zip_url_label">ZIP 包 URL</string>
     <string name="import_button">导入</string>
     <string name="local_import">本地导入</string>
@@ -56,6 +59,7 @@
     <string name="crash_logs_cleared">已清除全部崩溃日志</string>
     <string name="no_crash_logs">暂无崩溃日志</string>
     <string name="check_for_updates">检查更新</string>
+    <string name="current_version">当前版本：v%1$s</string>
     <string name="already_latest">已是最新版本</string>
     <string name="update_available">发现新版本</string>
     <string name="view_release">查看发布页</string>

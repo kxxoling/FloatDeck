@@ -4,6 +4,7 @@
     <string name="wallpaper_description">Parallax wallpaper with floating character portraits</string>
     <string name="set_as_live_wallpaper">Set as Live Wallpaper</string>
     <string name="template_title">Template</string>
+    <string name="no_templates_hint">No templates yet. Import one below to get started.</string>
     <string name="imported_templates">Imported Templates</string>
     <string name="delete">Delete</string>
     <string name="portrait_effect">Portrait Effect</string>
@@ -13,8 +14,10 @@
     <string name="drag_enabled">Allow Drag</string>
     <string name="frame_rate_title">Frame rate</string>
     <string name="frame_rate_auto">Auto (max %1$d Hz)</string>
+    <string name="import_section_title">Import Templates</string>
     <string name="import_remote_template">Import Remote Template</string>
     <string name="import_remote_desc">Enter ZIP URL to download and import template</string>
+    <string name="local_import_desc">Import from a ZIP file or a folder on this device</string>
     <string name="zip_url_label">ZIP URL</string>
     <string name="import_button">Import</string>
     <string name="local_import">Local Import</string>
@@ -56,6 +59,7 @@
     <string name="crash_logs_cleared">All crash logs cleared</string>
     <string name="no_crash_logs">No crash logs</string>
     <string name="check_for_updates">Check for Updates</string>
+    <string name="current_version">Current version: v%1$s</string>
     <string name="already_latest">Already up to date</string>
     <string name="update_available">Update Available</string>
     <string name="view_release">View Release</string>
