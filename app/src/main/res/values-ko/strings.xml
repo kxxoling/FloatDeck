@@ -57,6 +57,7 @@
     <string name="crash_logs_cleared">모든 크래시 로그를 삭제했습니다</string>
     <string name="no_crash_logs">크래시 로그 없음</string>
     <string name="check_for_updates">업데이트 확인</string>
+    <string name="current_version">현재 버전: v%1$s</string>
     <string name="already_latest">최신 버전입니다</string>
     <string name="update_available">업데이트 있음</string>
     <string name="view_release">릴리스 보기</string>

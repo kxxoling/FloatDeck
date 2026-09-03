@@ -59,6 +59,7 @@
     <string name="crash_logs_cleared">All crash logs cleared</string>
     <string name="no_crash_logs">No crash logs</string>
     <string name="check_for_updates">Check for Updates</string>
+    <string name="current_version">Current version: v%1$s</string>
     <string name="already_latest">Already up to date</string>
     <string name="update_available">Update Available</string>
     <string name="view_release">View Release</string>

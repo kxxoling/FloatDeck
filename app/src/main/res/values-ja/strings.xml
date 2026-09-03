@@ -57,6 +57,7 @@
     <string name="crash_logs_cleared">すべてのクラッシュログを消去しました</string>
     <string name="no_crash_logs">クラッシュログはありません</string>
     <string name="check_for_updates">更新を確認</string>
+    <string name="current_version">現在のバージョン：v%1$s</string>
     <string name="already_latest">最新です</string>
     <string name="update_available">更新があります</string>
     <string name="view_release">リリースを見る</string>
