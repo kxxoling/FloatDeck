@@ -14,8 +14,10 @@
     <string name="drag_enabled">Allow Drag</string>
     <string name="frame_rate_title">Frame rate</string>
     <string name="frame_rate_auto">Auto (max %1$d Hz)</string>
+    <string name="import_section_title">Import Templates</string>
     <string name="import_remote_template">Import Remote Template</string>
     <string name="import_remote_desc">Enter ZIP URL to download and import template</string>
+    <string name="local_import_desc">Import from a ZIP file or a folder on this device</string>
     <string name="zip_url_label">ZIP URL</string>
     <string name="import_button">Import</string>
     <string name="local_import">Local Import</string>

@@ -12,8 +12,10 @@
     <string name="effect_ice">氷</string>
     <string name="effect_holo">ホログラム</string>
     <string name="drag_enabled">ドラッグを許可</string>
+    <string name="import_section_title">テンプレートをインポート</string>
     <string name="import_remote_template">リモートテンプレートをインポート</string>
     <string name="import_remote_desc">ZIPのURLを入力してテンプレートをダウンロード・インポート</string>
+    <string name="local_import_desc">端末内のZIPファイルまたはフォルダからインポート</string>
     <string name="zip_url_label">ZIPのURL</string>
     <string name="import_button">インポート</string>
     <string name="local_import">ローカルからインポート</string>

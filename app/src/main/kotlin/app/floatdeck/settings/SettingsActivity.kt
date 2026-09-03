@@ -37,6 +37,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -488,85 +489,104 @@ fun SettingsScreen(
 
             item {
                 HorizontalDivider()
-                Text(stringResource(R.string.import_remote_template), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    stringResource(R.string.import_remote_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text(stringResource(R.string.import_section_title), style = MaterialTheme.typography.titleMedium)
             }
 
             item {
-                Column {
-                    OutlinedTextField(
-                        value = urlText,
-                        onValueChange = { urlText = it },
-                        label = { Text(stringResource(R.string.zip_url_label)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        enabled = !isLoading,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Button(
-                            onClick = { importTemplate() },
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.import_remote_template),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            stringResource(R.string.import_remote_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = urlText,
+                            onValueChange = { urlText = it },
+                            label = { Text(stringResource(R.string.zip_url_label)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
                             enabled = !isLoading,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text(stringResource(R.string.import_button))
+                            Button(
+                                onClick = { importTemplate() },
+                                enabled = !isLoading,
+                            ) {
+                                Text(stringResource(R.string.import_button))
+                            }
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.padding(start = 16.dp),
+                                )
+                            }
+                        }
+                        if (errorMessage.isNotEmpty()) {
+                            Text(
+                                errorMessage,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.local_import),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            stringResource(R.string.local_import_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Button(
+                                onClick = {
+                                    zipPickerLauncher.launch(
+                                        arrayOf(
+                                            "application/zip",
+                                            "application/x-zip-compressed",
+                                        ),
+                                    )
+                                },
+                                enabled = !isLoading,
+                            ) {
+                                Text(stringResource(R.string.zip_file))
+                            }
+                            Button(
+                                onClick = {
+                                    dirPickerLauncher.launch(null)
+                                },
+                                enabled = !isLoading,
+                            ) {
+                                Text(stringResource(R.string.directory))
+                            }
                         }
                         if (isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.padding(start = 16.dp),
+                                modifier = Modifier.padding(top = 8.dp),
                             )
                         }
                     }
-                    if (errorMessage.isNotEmpty()) {
-                        Text(
-                            errorMessage,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    }
-                }
-            }
-
-            item {
-                HorizontalDivider()
-                Text(stringResource(R.string.local_import), style = MaterialTheme.typography.titleSmall)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Button(
-                        onClick = {
-                            zipPickerLauncher.launch(
-                                arrayOf(
-                                    "application/zip",
-                                    "application/x-zip-compressed",
-                                ),
-                            )
-                        },
-                        enabled = !isLoading,
-                    ) {
-                        Text(stringResource(R.string.zip_file))
-                    }
-                    Button(
-                        onClick = {
-                            dirPickerLauncher.launch(null)
-                        },
-                        enabled = !isLoading,
-                    ) {
-                        Text(stringResource(R.string.directory))
-                    }
-                }
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
                 }
             }
 
