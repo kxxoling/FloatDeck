@@ -3,8 +3,14 @@ name: Shader Validation
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/src/main/kotlin/app/floatdeck/gl/Shaders.kt'
+      - '.github/workflows/shader-validation.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'app/src/main/kotlin/app/floatdeck/gl/Shaders.kt'
+      - '.github/workflows/shader-validation.yml'
   workflow_dispatch:
 
 jobs:
