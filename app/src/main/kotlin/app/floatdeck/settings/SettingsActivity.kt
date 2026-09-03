@@ -361,7 +361,6 @@ fun SettingsScreen(
             // 已导入的远程模板列表
             if (remoteTemplates.isNotEmpty()) {
                 item {
-                    HorizontalDivider()
                     Text(stringResource(R.string.imported_templates), style = MaterialTheme.typography.titleSmall)
                 }
 
@@ -404,8 +403,8 @@ fun SettingsScreen(
             }
 
             // 立绘特效选择
+            item { HorizontalDivider() }
             item {
-                HorizontalDivider()
                 Text(stringResource(R.string.portrait_effect), style = MaterialTheme.typography.titleMedium)
             }
 
@@ -487,8 +486,8 @@ fun SettingsScreen(
                 }
             }
 
+            item { HorizontalDivider() }
             item {
-                HorizontalDivider()
                 Text(stringResource(R.string.import_section_title), style = MaterialTheme.typography.titleMedium)
             }
 
@@ -590,8 +589,8 @@ fun SettingsScreen(
                 }
             }
 
+            item { HorizontalDivider() }
             item {
-                HorizontalDivider()
                 Text(
                     stringResource(R.string.crash_logs_title),
                     style = MaterialTheme.typography.titleSmall,
@@ -656,8 +655,8 @@ fun SettingsScreen(
                 }
             }
 
+            item { HorizontalDivider() }
             item {
-                HorizontalDivider()
                 Text(
                     "v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodySmall,
