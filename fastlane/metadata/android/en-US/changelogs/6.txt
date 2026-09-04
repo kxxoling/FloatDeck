@@ -1,0 +1,4 @@
+• Settings reworked around templates: pick a template, then apply it with the "Set as Live Wallpaper" button, which stays disabled until one is selected.
+• Shows an import hint when no templates are available yet.
+• Remote and local imports now live in one section, each method in its own card.
+• Clearer section dividers and a "Current version" label.
