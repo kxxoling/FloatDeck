@@ -12,6 +12,8 @@
     <string name="effect_ice">氷</string>
     <string name="effect_holo">ホログラム</string>
     <string name="drag_enabled">ドラッグを許可</string>
+    <string name="frame_rate_title">フレームレート</string>
+    <string name="frame_rate_auto">自動（最大 %1$dHz）</string>
     <string name="import_section_title">テンプレートをインポート</string>
     <string name="import_remote_template">リモートテンプレートをインポート</string>
     <string name="import_remote_desc">ZIPのURLを入力してテンプレートをダウンロード・インポート</string>
