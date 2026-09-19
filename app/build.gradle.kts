@@ -88,8 +88,8 @@ android {
         applicationId = "app.floatdeck"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.4.1"
+        versionCode = 7
+        versionName = "0.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -172,6 +172,8 @@ dependencies {
     testImplementation("org.json:json:20240303")
 
     androidTestImplementation(libs.compose.test)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 

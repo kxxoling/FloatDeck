@@ -41,7 +41,7 @@ object Shaders {
         }
         """.trimIndent()
 
-    /** 肖像卡片片段着色器：圆角矩形裁切 + 阴影 + 纹理采样 + 立绘特效。 */
+    /** Portrait card fragment shader: rounded-rect clipping + shadow + texture sampling (with texture alpha) + card effects, outputting premultiplied-alpha color. */
     val portraitFragment =
         """
         #version 300 es
@@ -145,24 +145,32 @@ object Shaders {
 
             vec4 texColor = texture(uTexture, vUV);
 
+            // Texture alpha participates in card opacity (supports semi-transparent PNGs);
+            // uploaded texture is premultiplied alpha: un-premultiply before effect math
+            float texAlpha = texColor.a;
+            vec3 straightColor = texColor.rgb / max(texAlpha, 0.0001);
+
             // 应用立绘特效
-            vec3 finalColor = texColor.rgb;
+            vec3 finalColor = straightColor;
             if (uEffect == 1) {
                 finalColor = applyIceEffect(finalColor, vUV, vLocalPos, dist);
             } else if (uEffect == 2) {
                 finalColor = applyHoloEffect(finalColor, vUV, vLocalPos);
             }
 
+            // Card opacity = rounded mask × texture alpha; card color is output premultiplied
+            float cardAlpha = mask * texAlpha;
+
             // 阴影层：偏移后再次计算圆角矩形 SDF
             vec2 shadowLocalPos = vLocalPos - uShadowOffset;
             float shadowDist = roundedBoxSDF(shadowLocalPos, vec2(1.0), uRadius);
             float shadowMask = 1.0 - smoothstep(-0.05, 0.1, shadowDist);
 
-            vec3 shadow = uShadowColor.rgb * shadowMask * uShadowColor.a;
-            vec3 color = mix(shadow, finalColor, mask);
-
-            // 最终输出：卡片遮罩 + 阴影遮罩，乘以整体透明度
-            fragColor = vec4(color, (mask + shadowMask * uShadowColor.a) * uAlpha);
+            // Card composited over the shadow (premultiplied-alpha "over"), scaled by uAlpha
+            float shadowAlpha = shadowMask * uShadowColor.a;
+            vec3 color = finalColor * cardAlpha + uShadowColor.rgb * shadowAlpha * (1.0 - cardAlpha);
+            float alpha = cardAlpha + shadowAlpha * (1.0 - cardAlpha);
+            fragColor = vec4(color * uAlpha, alpha * uAlpha);
         }
         """.trimIndent()
 
@@ -200,7 +208,9 @@ object Shaders {
 
         void main() {
             vec4 texColor = texture(uTexture, vUV);
-            fragColor = vec4(texColor.rgb, texColor.a * uAlpha);
+            // Texture is premultiplied alpha: scale rgb and a by uAlpha so the
+            // (ONE, ONE_MINUS_SRC_ALPHA) blend fades the layer as a whole
+            fragColor = vec4(texColor.rgb * uAlpha, texColor.a * uAlpha);
         }
         """.trimIndent()
 }

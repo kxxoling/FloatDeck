@@ -205,7 +205,8 @@ class FloatDeckRenderer(
     ) {
         GLES30.glClearColor(0.1f, 0.1f, 0.15f, 1f)
         GLES30.glEnable(GLES30.GL_BLEND)
-        GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
+        // GLUtils.texImage2D uploads premultiplied-alpha bitmaps; blend must be (ONE, ONE_MINUS_SRC_ALPHA)
+        GLES30.glBlendFunc(GLES30.GL_ONE, GLES30.GL_ONE_MINUS_SRC_ALPHA)
 
         portraitProgram = ShaderProgram.compile(Shaders.portraitVertex, Shaders.portraitFragment)
         backgroundProgram = ShaderProgram.compile(Shaders.backgroundVertex, Shaders.backgroundFragment)
