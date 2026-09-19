@@ -172,6 +172,8 @@ dependencies {
     testImplementation("org.json:json:20240303")
 
     androidTestImplementation(libs.compose.test)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
