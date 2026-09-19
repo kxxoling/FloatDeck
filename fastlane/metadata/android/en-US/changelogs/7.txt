@@ -1,0 +1,2 @@
+• Fixed semi-transparent PNG portraits rendering as opaque cards with black or washed-out backgrounds.
+• Transparent areas of a portrait now correctly reveal the wallpaper behind them, with proper alpha blending throughout the fade.
