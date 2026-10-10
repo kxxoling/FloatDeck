@@ -24,7 +24,7 @@ enum class PortraitEffect(
  * @param yRatio 垂直位置比例
  * @param rotation 旋转角度（度）
  * @param scale 缩放倍数
- * @param tiltOffset 视差灵敏度系数（越大跟随倾斜越明显）
+ * @param tiltOffset 视差灵敏度系数（越大跟随倾斜越明显，1 为默认）
  */
 data class PortraitPosition(
     val xRatio: Float,
@@ -34,13 +34,16 @@ data class PortraitPosition(
     val tiltOffset: Float = 1f,
 )
 
-/** 单张肖像卡片配置：资源路径 + 锁屏/解锁两种状态的位置。 */
+/**
+ * 单张肖像卡片配置：资源路径 + 可选的锁屏/解锁显式位置。
+ * 位置为 null 时渲染器使用内置布局算法。
+ */
 data class PortraitConfig(
     val id: String,
     val assetPath: String,
     val label: String,
-    val lockedPosition: PortraitPosition,
-    val unlockedPosition: PortraitPosition,
+    val lockedPosition: PortraitPosition? = null,
+    val unlockedPosition: PortraitPosition? = null,
     val isRemote: Boolean = false,
 )
 

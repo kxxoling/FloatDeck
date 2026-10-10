@@ -34,6 +34,25 @@ Each template lives in a folder with a `template.json` and image files:
 }
 ```
 
+#### Optional explicit positions
+
+By default portraits are arranged by the built-in layout algorithm. A portrait
+entry may instead pin its locked (keyguard) and/or unlocked placement with
+screen-ratio coordinates (all fields except `x`/`y` optional; defaults:
+`rotation: 0`, `scale: 1`, `tiltOffset: 1`):
+
+```json
+{
+  "file": "a.webp", "label": "A",
+  "locked":   {"x": 0.3, "y": 0.4, "rotation": 5, "scale": 0.9, "tiltOffset": 1.5},
+  "unlocked": {"x": 0.05, "y": 0.5, "scale": 0.64}
+}
+```
+
+Positions you adjust in-app (dragging portraits on the wallpaper, or the layout
+editor) are saved as a per-template override file and take precedence over the
+template's own values.
+
 ### Importing Templates
 
 Templates can be imported from:

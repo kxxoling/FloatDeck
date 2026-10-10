@@ -6,7 +6,9 @@ import android.graphics.Color
 import android.opengl.GLES30
 import android.opengl.Matrix
 import app.floatdeck.data.BackgroundAdjustment
+import app.floatdeck.data.PortraitPosition
 import app.floatdeck.data.TemplateConfig
+import app.floatdeck.data.TemplateOverride
 import java.nio.FloatBuffer
 import kotlin.math.abs
 import kotlin.math.exp
@@ -18,6 +20,11 @@ import kotlin.math.sin
 
 /**
  * 单张立绘卡片的运行时状态。
+ *
+ * @param lockedPosition 模板/override 提供的锁屏显式位置（null = 内置布局算法）
+ * @param unlockedPosition 模板/override 提供的解锁显式位置（null = 内置布局算法）
+ * @param baseOffsetX/Y 已持久化的用户偏移（像素）
+ * @param extraScale/extraRotation 编辑器在显式/内置位置之上的临时调整
  */
 data class PortraitState(
     val id: String,
@@ -30,6 +37,12 @@ data class PortraitState(
     var offsetY: Float = 0f,
     var velocityX: Float = 0f,
     var velocityY: Float = 0f,
+    val lockedPosition: PortraitPosition? = null,
+    val unlockedPosition: PortraitPosition? = null,
+    var baseOffsetX: Float = 0f,
+    var baseOffsetY: Float = 0f,
+    var extraScale: Float = 1f,
+    var extraRotation: Float = 0f,
 )
 
 // ============================================================================
@@ -268,7 +281,10 @@ class FloatDeckRenderer(
     // 模板加载
     // ==================================================================
 
-    fun loadTemplate(template: TemplateConfig) {
+    fun loadTemplate(
+        template: TemplateConfig,
+        override: TemplateOverride = TemplateOverride(),
+    ) {
         portraitStates.forEach { TextureLoader.deleteTexture(it.textureId) }
         portraitStates.clear()
         if (wallpaperTextureId != 0) TextureLoader.deleteTexture(wallpaperTextureId)
@@ -290,6 +306,13 @@ class FloatDeckRenderer(
         }
 
         template.portraits.forEachIndexed { index, config ->
+            // override 中的显式位置优先于模板定义；偏移按当前屏幕尺寸换算为像素
+            val portraitOverride = override.portraits[config.id]
+            val lockedPosition = portraitOverride?.lockedPosition ?: config.lockedPosition
+            val unlockedPosition = portraitOverride?.unlockedPosition ?: config.unlockedPosition
+            val baseOffsetX = (portraitOverride?.offsetX ?: 0f) * screenWidthPixels
+            val baseOffsetY = (portraitOverride?.offsetY ?: 0f) * screenHeightPixels
+
             val result =
                 if (config.isRemote) {
                     loadTextureFromPath(config.assetPath)
@@ -305,6 +328,10 @@ class FloatDeckRenderer(
                         textureWidth = result.second,
                         textureHeight = result.third,
                         drawOrder = index,
+                        lockedPosition = lockedPosition,
+                        unlockedPosition = unlockedPosition,
+                        baseOffsetX = baseOffsetX,
+                        baseOffsetY = baseOffsetY,
                     ),
                 )
             } else {
@@ -320,6 +347,10 @@ class FloatDeckRenderer(
                         textureWidth = 128,
                         textureHeight = 256,
                         drawOrder = index,
+                        lockedPosition = lockedPosition,
+                        unlockedPosition = unlockedPosition,
+                        baseOffsetX = baseOffsetX,
+                        baseOffsetY = baseOffsetY,
                     ),
                 )
             }
@@ -561,29 +592,27 @@ class FloatDeckRenderer(
 
             val transitionT = transitionProgress
 
-            // ---- 位置计算 ----
+            // ---- 位置计算：显式位置（模板/override）优先，否则内置布局算法 ----
 
-            // 锁屏位置（使用当前布局）
-            val (lockedCenterX, lockedCenterY) = calculateLockedPosition(globalIndex, totalCount)
-            val lockedScale = 0.85f
-            val lockedRotation = (globalIndex - totalCount / 2) * 2.5f
+            val placement =
+                computePlacement(
+                    state,
+                    globalIndex,
+                    totalCount,
+                    isOnLeftSide,
+                    sideIndex,
+                    sideCount,
+                    transitionT,
+                )
 
-            // 解锁位置（两侧边缘）
-            val unlockedEdgeX = if (isOnLeftSide) 0.05f else 0.95f
-            val unlockedEdgeY = calculateUnlockedY(sideIndex, sideCount)
-            val unlockedScale = 0.64f
-            val unlockedRotation =
-                if (isOnLeftSide) -7.2f + sideIndex * 1.8f else 7.2f - sideIndex * 1.8f
-
-            // ---- 插值 ----
-
-            var drawX = lerp(unlockedEdgeX, lockedCenterX, transitionT) * screenWidthPixels
-            var drawY = lerp(unlockedEdgeY, lockedCenterY, transitionT) * screenHeightPixels
-            val drawScale = lerp(unlockedScale, lockedScale, transitionT)
-            val drawRotation = lerp(unlockedRotation, lockedRotation, transitionT)
+            var drawX = placement[0] * screenWidthPixels
+            var drawY = placement[1] * screenHeightPixels
+            val drawScale = placement[2]
+            val drawRotation = placement[3]
 
             // ---- 陀螺仪视差（始终生效）----
-            // 轻微的视差偏移，立绘也有但比壁纸弱
+            // 轻微的视差偏移，立绘也有但比壁纸弱；
+            // 显式位置可携带每卡的 tiltOffset（默认 1），随过渡插值
             val portraitParallax =
                 parallaxOffsets(
                     smoothedPitchY,
@@ -594,17 +623,20 @@ class FloatDeckRenderer(
                     PORTRAIT_PARALLAX_Y,
                     parallaxSensitivity,
                 )
-            drawX += portraitParallax[0]
-            drawY += portraitParallax[1]
+            val tiltLocked = state.lockedPosition?.tiltOffset ?: 1f
+            val tiltUnlocked = state.unlockedPosition?.tiltOffset ?: 1f
+            val tiltFactor = lerp(tiltUnlocked, tiltLocked, transitionT)
+            drawX += portraitParallax[0] * tiltFactor
+            drawY += portraitParallax[1] * tiltFactor
 
             // ---- 晃动动画（始终生效）----
             val sway = calculateSway(globalIndex)
             drawX += sway[0]
             drawY += sway[1]
 
-            // 用户拖拽偏移
-            drawX += state.offsetX
-            drawY += state.offsetY
+            // 用户偏移：已持久化的 base + 本次拖动
+            drawX += state.baseOffsetX + state.offsetX
+            drawY += state.baseOffsetY + state.offsetY
 
             // ---- 绘制 ----
 
@@ -703,6 +735,54 @@ class FloatDeckRenderer(
         return (yStart + sideIndex * yStep).coerceIn(0.1f, 0.9f)
     }
 
+    // ==================================================================
+    // 位置解析（显式位置 vs 内置布局）
+    // ==================================================================
+
+    /**
+     * 计算某张立绘在当前过渡进度下的 [x 比例, y 比例, 缩放, 旋转]。
+     * 显式位置（模板 template.json 或用户 override）优先，
+     * 否则回退到与历史版本一致的内置布局算法。
+     */
+    private fun computePlacement(
+        state: PortraitState,
+        globalIndex: Int,
+        totalCount: Int,
+        isOnLeftSide: Boolean,
+        sideIndex: Int,
+        sideCount: Int,
+        transitionT: Float,
+    ): FloatArray {
+        val legacyLockedXY = calculateLockedPosition(globalIndex, totalCount)
+        val legacyLocked =
+            floatArrayOf(
+                legacyLockedXY.first,
+                legacyLockedXY.second,
+                LEGACY_LOCKED_SCALE,
+                legacyLockedRotation(globalIndex, totalCount),
+            )
+        val legacyUnlocked =
+            floatArrayOf(
+                if (isOnLeftSide) 0.05f else 0.95f,
+                calculateUnlockedY(sideIndex, sideCount),
+                LEGACY_UNLOCKED_SCALE,
+                legacyUnlockedRotation(isOnLeftSide, sideIndex),
+            )
+        val locked = lockedPlacementValues(state.lockedPosition, legacyLocked, state.extraScale, state.extraRotation)
+        val unlocked = unlockedPlacementValues(state.unlockedPosition, legacyUnlocked, state.extraScale, state.extraRotation)
+        return interpolatePlacement(locked, unlocked, transitionT)
+    }
+
+    private fun legacyLockedRotation(
+        globalIndex: Int,
+        totalCount: Int,
+    ): Float = (globalIndex - totalCount / 2) * 2.5f
+
+    private fun legacyUnlockedRotation(
+        isOnLeftSide: Boolean,
+        sideIndex: Int,
+    ): Float = if (isOnLeftSide) -7.2f + sideIndex * 1.8f else 7.2f - sideIndex * 1.8f
+
     /**
      * 计算立绘的晃动偏移（带随机元素，始终生效）。
      * 只有上下浮动，没有水平偏移。
@@ -796,7 +876,7 @@ class FloatDeckRenderer(
         draggedPortraitIndex = -1
     }
 
-    /** Reset all portrait drag offsets and velocities to their default positions. */
+    /** Reset all portrait drag offsets and velocities to their saved positions. */
     fun resetDragOffsets() {
         portraitStates.forEach { state ->
             state.offsetX = 0f
@@ -805,6 +885,34 @@ class FloatDeckRenderer(
             state.velocityY = 0f
         }
         draggedPortraitIndex = -1
+    }
+
+    /** 当前是否有立绘正处于拖动中（供拖动结束时判断是否需要持久化）。 */
+    fun isPortraitDragged(): Boolean = draggedPortraitIndex >= 0
+
+    /**
+     * 每张立绘的累计用户偏移（已保存 base + 本次拖动），按屏幕宽高归一化。
+     * 键为 PortraitConfig.id，供持久化到模板 override。
+     */
+    fun normalizedPortraitOffsets(): Map<String, Pair<Float, Float>> =
+        portraitStates.associate { state ->
+            state.id to
+                Pair(
+                    (state.baseOffsetX + state.offsetX) / screenWidthPixels,
+                    (state.baseOffsetY + state.offsetY) / screenHeightPixels,
+                )
+        }
+
+    /** 持久化成功后调用：将本次拖动偏移并入 base 并清零，避免重复累计。 */
+    fun commitDragOffsets() {
+        portraitStates.forEach { state ->
+            state.baseOffsetX += state.offsetX
+            state.baseOffsetY += state.offsetY
+            state.offsetX = 0f
+            state.offsetY = 0f
+            state.velocityX = 0f
+            state.velocityY = 0f
+        }
     }
 
     fun onDoubleTap(
@@ -854,18 +962,20 @@ class FloatDeckRenderer(
         val sideIndex = if (isOnLeftSide) globalIndex else globalIndex - leftSideCount
         val sideCount = if (isOnLeftSide) leftSideCount else totalCount - leftSideCount
 
-        val t = transitionProgress
+        val placement =
+            computePlacement(
+                state,
+                globalIndex,
+                totalCount,
+                isOnLeftSide,
+                sideIndex,
+                sideCount,
+                transitionProgress,
+            )
 
-        val (lockedX, lockedY) = calculateLockedPosition(globalIndex, totalCount)
-        val lockedScale = 0.85f
-
-        val unlockedX = if (isOnLeftSide) 0.05f else 0.95f
-        val unlockedY = calculateUnlockedY(sideIndex, sideCount)
-        val unlockedScale = 0.64f
-
-        val centerX = lerp(unlockedX, lockedX, t) * screenWidthPixels + state.offsetX
-        val centerY = lerp(unlockedY, lockedY, t) * screenHeightPixels + state.offsetY
-        val scale = lerp(unlockedScale, lockedScale, t)
+        val centerX = placement[0] * screenWidthPixels + state.baseOffsetX + state.offsetX
+        val centerY = placement[1] * screenHeightPixels + state.baseOffsetY + state.offsetY
+        val scale = placement[2]
 
         val height = screenHeightPixels * portraitHeightScreenFraction * scale
         val width = height * portraitAspectRatio
@@ -890,6 +1000,59 @@ class FloatDeckRenderer(
         internal const val BACKGROUND_PARALLAX_Y = 0.075f
         internal const val PORTRAIT_PARALLAX_X = 0.25f
         internal const val PORTRAIT_PARALLAX_Y = 0.2f
+
+        // 无显式位置时的内置布局参数（与历史版本保持一致）
+        internal const val LEGACY_LOCKED_SCALE = 0.85f
+        internal const val LEGACY_UNLOCKED_SCALE = 0.64f
+
+        /**
+         * 解析锁屏位置：显式位置优先，否则使用内置布局值。
+         * [legacy] 为 [x, y, scale, rotation]。extra* 为编辑器临时调整。
+         */
+        internal fun lockedPlacementValues(
+            position: PortraitPosition?,
+            legacy: FloatArray,
+            extraScale: Float,
+            extraRotation: Float,
+        ): FloatArray =
+            if (position != null) {
+                floatArrayOf(
+                    position.xRatio,
+                    position.yRatio,
+                    position.scale * extraScale,
+                    position.rotation + extraRotation,
+                )
+            } else {
+                floatArrayOf(
+                    legacy[0],
+                    legacy[1],
+                    legacy[2] * extraScale,
+                    legacy[3] + extraRotation,
+                )
+            }
+
+        /** 解析解锁位置，规则同 [lockedPlacementValues]。 */
+        internal fun unlockedPlacementValues(
+            position: PortraitPosition?,
+            legacy: FloatArray,
+            extraScale: Float,
+            extraRotation: Float,
+        ): FloatArray = lockedPlacementValues(position, legacy, extraScale, extraRotation)
+
+        /** 在锁屏/解锁两组位置参数之间按过渡进度插值。 */
+        internal fun interpolatePlacement(
+            locked: FloatArray,
+            unlocked: FloatArray,
+            t: Float,
+        ): FloatArray {
+            val tc = t.coerceIn(0f, 1f)
+            return floatArrayOf(
+                unlocked[0] + (locked[0] - unlocked[0]) * tc,
+                unlocked[1] + (locked[1] - unlocked[1]) * tc,
+                unlocked[2] + (locked[2] - unlocked[2]) * tc,
+                unlocked[3] + (locked[3] - unlocked[3]) * tc,
+            )
+        }
 
         /**
          * 计算视差偏移（像素）：传感器值先钳制到 ±0.5 防止大角度倾斜导致过大偏移，

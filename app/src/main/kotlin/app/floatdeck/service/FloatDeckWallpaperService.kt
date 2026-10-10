@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import androidx.core.content.ContextCompat
+import app.floatdeck.data.PortraitOverride
 import app.floatdeck.data.RemoteTemplateLoader
 import app.floatdeck.data.TemplateDef
 import app.floatdeck.data.TemplateOverrides
@@ -195,11 +196,46 @@ class FloatDeckWallpaperService : WallpaperService() {
                         renderer.onTouchMove(event.x, event.y)
                     }
                     MotionEvent.ACTION_UP -> {
+                        val wasDragging = renderer.isPortraitDragged()
                         renderer.onTouchUp()
+                        if (wasDragging) {
+                            persistPortraitOffsets()
+                        }
                     }
                 }
             }
             super.onTouchEvent(event)
+        }
+
+        /**
+         * 拖动结束后，把立绘的用户偏移静默持久化到当前模板的 override
+         * （不递增版本号、不触发热重载，渲染器同步并入 base 偏移）。
+         */
+        private fun persistPortraitOffsets() {
+            val templateId =
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .getString(KEY_TEMPLATE_ID, "") ?: ""
+            if (templateId.isBlank()) return
+            val offsets = renderer.normalizedPortraitOffsets()
+            if (offsets.isEmpty()) return
+            runCatching {
+                val current = TemplateOverrides.load(applicationContext, templateId)
+                val merged =
+                    current.copy(
+                        portraits =
+                            current.portraits + offsets.mapValues { (id, offset) ->
+                                val prev = current.portraits[id]
+                                PortraitOverride(
+                                    lockedPosition = prev?.lockedPosition,
+                                    unlockedPosition = prev?.unlockedPosition,
+                                    offsetX = offset.first,
+                                    offsetY = offset.second,
+                                )
+                            },
+                    )
+                TemplateOverrides.save(applicationContext, templateId, merged, bumpRevision = false)
+                renderer.commitDragOffsets()
+            }
         }
 
         private fun startGLThread() {
@@ -630,26 +666,16 @@ class GLWallpaperThread(
             def = Templates.loadTemplate(context, savedId)
         }
         if (def != null) {
-            val rect = surfaceHolder.surfaceFrame
             val config =
                 if (isRemote) {
-                    Templates.toTemplateConfigFromDir(
-                        def,
-                        remoteDir,
-                        rect.width().toFloat(),
-                        rect.height().toFloat(),
-                    )
+                    Templates.toTemplateConfigFromDir(def, remoteDir)
                 } else {
-                    Templates.toTemplateConfig(
-                        context,
-                        def,
-                        rect.width().toFloat(),
-                        rect.height().toFloat(),
-                    )
+                    Templates.toTemplateConfig(context, def)
                 }
-            renderer.loadTemplate(config)
-            // 叠加用户 override（背景缩放/平移、立绘位置覆盖）
-            renderer.backgroundAdjust = TemplateOverrides.load(context, savedId).background
+            // 叠加用户 override（背景缩放/平移、立绘位置与偏移）
+            val override = TemplateOverrides.load(context, savedId)
+            renderer.loadTemplate(config, override)
+            renderer.backgroundAdjust = override.background
         }
     }
 
