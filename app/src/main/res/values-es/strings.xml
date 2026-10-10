@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">Intensidad del paralaje al inclinar</string>
     <string name="tilt_sensitivity_desc">Cuánto se mueven el fondo y los retratos al inclinar el dispositivo</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">Ajuste del fondo</string>
+    <string name="background_adjust_desc">Amplía y reposiciona el fondo de la plantilla seleccionada</string>
+    <string name="background_zoom">Zoom</string>
+    <string name="background_offset_x">Posición horizontal</string>
+    <string name="background_offset_y">Posición vertical</string>
+    <string name="background_reset">Restablecer</string>
+    <string name="background_adjust_no_template">Selecciona primero una plantilla</string>
 </resources>

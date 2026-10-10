@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">Intensidade do paralaxe de inclinação</string>
     <string name="tilt_sensitivity_desc">O quanto o papel de parede e os retratos se movem ao inclinar o dispositivo</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">Ajuste do fundo</string>
+    <string name="background_adjust_desc">Ajusta o zoom e a posição do papel de parede do modelo selecionado</string>
+    <string name="background_zoom">Zoom</string>
+    <string name="background_offset_x">Posição horizontal</string>
+    <string name="background_offset_y">Posição vertical</string>
+    <string name="background_reset">Redefinir</string>
+    <string name="background_adjust_no_template">Selecione primeiro um modelo</string>
 </resources>

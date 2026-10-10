@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">Tilt Parallax Strength</string>
     <string name="tilt_sensitivity_desc">How much device tilting moves the wallpaper and portraits</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">Background Adjustment</string>
+    <string name="background_adjust_desc">Zoom and reposition the wallpaper of the selected template</string>
+    <string name="background_zoom">Zoom</string>
+    <string name="background_offset_x">Horizontal position</string>
+    <string name="background_offset_y">Vertical position</string>
+    <string name="background_reset">Reset</string>
+    <string name="background_adjust_no_template">Select a template first</string>
 </resources>

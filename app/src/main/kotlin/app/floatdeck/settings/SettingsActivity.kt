@@ -447,6 +447,9 @@ fun SettingsScreen(
             // own file so a settings-page redesign can move it freely)
             item { TiltSensitivitySetting(repo = repo) }
 
+            // Background zoom/pan for the selected template (self-contained)
+            item { BackgroundAdjustSettings(templateId = templateId) }
+
             // Render frame rate preference (Material3 exposed dropdown)
             item {
                 var frameRateMenuExpanded by remember { mutableStateOf(false) }

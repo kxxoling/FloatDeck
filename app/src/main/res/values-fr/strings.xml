@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">Intensité du parallaxe d\'inclinaison</string>
     <string name="tilt_sensitivity_desc">Amplitude de déplacement du fond et des portraits quand l\'appareil s\'incline</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">Ajustement de l\'arrière-plan</string>
+    <string name="background_adjust_desc">zoome et repositionne le fond du modèle sélectionné</string>
+    <string name="background_zoom">Zoom</string>
+    <string name="background_offset_x">Position horizontale</string>
+    <string name="background_offset_y">Position verticale</string>
+    <string name="background_reset">Réinitialiser</string>
+    <string name="background_adjust_no_template">Sélectionnez d\'abord un modèle</string>
 </resources>

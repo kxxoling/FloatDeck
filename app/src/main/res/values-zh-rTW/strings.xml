@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">傾斜視差強度</string>
     <string name="tilt_sensitivity_desc">裝置傾斜時桌布與立繪跟隨移動的幅度</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">背景調整</string>
+    <string name="background_adjust_desc">縮放並移動目前範本的背景桌布</string>
+    <string name="background_zoom">縮放</string>
+    <string name="background_offset_x">水平位置</string>
+    <string name="background_offset_y">垂直位置</string>
+    <string name="background_reset">重設</string>
+    <string name="background_adjust_no_template">請先選擇範本</string>
 </resources>

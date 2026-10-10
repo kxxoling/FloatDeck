@@ -13,6 +13,7 @@ import android.view.SurfaceHolder
 import androidx.core.content.ContextCompat
 import app.floatdeck.data.RemoteTemplateLoader
 import app.floatdeck.data.TemplateDef
+import app.floatdeck.data.TemplateOverrides
 import app.floatdeck.data.Templates
 import app.floatdeck.gl.FloatDeckRenderer
 import app.floatdeck.sensor.SensorHandler
@@ -66,6 +67,8 @@ class FloatDeckWallpaperService : WallpaperService() {
                         .getFloat(KEY_TILT_SENSITIVITY, 1f)
                     glThread?.updateTiltSensitivity(value)
                 }
+                // 用户在设置页保存了模板 override（背景/位置），热重载生效
+                TemplateOverrides.PREF_KEY_REVISION -> glThread?.requestReload()
             }
         }
 
@@ -645,6 +648,8 @@ class GLWallpaperThread(
                     )
                 }
             renderer.loadTemplate(config)
+            // 叠加用户 override（背景缩放/平移、立绘位置覆盖）
+            renderer.backgroundAdjust = TemplateOverrides.load(context, savedId).background
         }
     }
 

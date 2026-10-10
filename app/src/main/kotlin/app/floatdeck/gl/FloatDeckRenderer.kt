@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.opengl.GLES30
 import android.opengl.Matrix
+import app.floatdeck.data.BackgroundAdjustment
 import app.floatdeck.data.TemplateConfig
 import java.nio.FloatBuffer
 import kotlin.math.abs
@@ -170,6 +171,10 @@ class FloatDeckRenderer(
     /** 陀螺仪视差全局灵敏度倍率（1 = 默认）。由壁纸服务从 SharedPreferences 读取后设置。 */
     @Volatile
     var parallaxSensitivity = 1f
+
+    /** 背景用户自定义缩放/平移。由壁纸服务加载模板时从 override 文件设置。 */
+    @Volatile
+    var backgroundAdjust = BackgroundAdjustment()
 
     // ------------------------------------------------------------------
     // 触控
@@ -496,17 +501,31 @@ class FloatDeckRenderer(
         val drawWidth = wallpaperPixelWidth.toFloat() * scaleFactor
         val drawHeight = wallpaperPixelHeight.toFloat() * scaleFactor
 
+        // 用户自定义缩放/平移：平移量按“扣除视差余量后的可用余量”比例换算，
+        // 保证平移与视差叠加后仍不露出黑边
+        val geometry =
+            backgroundGeometry(
+                screenWidthPixels,
+                screenHeightPixels,
+                drawWidth,
+                drawHeight,
+                maxParallaxOffset,
+                backgroundAdjust.zoom,
+                backgroundAdjust.offsetX,
+                backgroundAdjust.offsetY,
+            )
+
         val mvp = FloatArray(16)
         val model = FloatArray(16)
         Matrix.setIdentityM(model, 0)
         Matrix.translateM(
             model,
             0,
-            screenWidthPixels / 2f + parallaxX,
-            screenHeightPixels / 2f + parallaxY,
+            screenWidthPixels / 2f + parallaxX + geometry[2],
+            screenHeightPixels / 2f + parallaxY + geometry[3],
             0f,
         )
-        Matrix.scaleM(model, 0, drawWidth / 2f, drawHeight / 2f, 1f)
+        Matrix.scaleM(model, 0, geometry[0] / 2f, geometry[1] / 2f, 1f)
         Matrix.multiplyMM(mvp, 0, orthographicMatrix, 0, model, 0)
 
         GLES30.glUniformMatrix4fv(uniformBackgroundMvp, 1, false, mvp, 0)
@@ -891,6 +910,36 @@ class FloatDeckRenderer(
                 clampedPitch * screenWidth * xMultiplier,
                 clampedRoll * screenHeight * yMultiplier,
             )
+        }
+
+        /**
+         * 计算背景最终绘制尺寸与用户平移（像素）。
+         *
+         * 平移可用余量 = (缩放后尺寸 − 屏幕尺寸) / 2 − 视差预留余量；
+         * zoom = 1 且无 overscan 余量时平移自动归零，保证任何输入下不露黑边。
+         * 提取为纯函数便于单测。
+         *
+         * @return [绘制宽度, 绘制高度, 用户水平平移, 用户垂直平移]
+         */
+        internal fun backgroundGeometry(
+            screenWidth: Float,
+            screenHeight: Float,
+            drawWidth: Float,
+            drawHeight: Float,
+            maxParallaxOffset: Float,
+            zoom: Float,
+            offsetXFrac: Float,
+            offsetYFrac: Float,
+        ): FloatArray {
+            val safeZoom = zoom.coerceAtLeast(1f)
+            val zoomedWidth = drawWidth * safeZoom
+            val zoomedHeight = drawHeight * safeZoom
+            // 视差余量按两轴的最大值预留（保守估计），剩余部分才分配给用户平移
+            val slackX = ((zoomedWidth - screenWidth) / 2f - maxParallaxOffset).coerceAtLeast(0f)
+            val slackY = ((zoomedHeight - screenHeight) / 2f - maxParallaxOffset).coerceAtLeast(0f)
+            val userOffsetX = offsetXFrac.coerceIn(-1f, 1f) * slackX
+            val userOffsetY = offsetYFrac.coerceIn(-1f, 1f) * slackY
+            return floatArrayOf(zoomedWidth, zoomedHeight, userOffsetX, userOffsetY)
         }
     }
 }

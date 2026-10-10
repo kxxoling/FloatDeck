@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">傾き視差の強さ</string>
     <string name="tilt_sensitivity_desc">端末を傾けたときの壁紙とキャラカードの動きの大きさ</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">背景の調整</string>
+    <string name="background_adjust_desc">選択したテンプレートの壁紙を拡大・移動します</string>
+    <string name="background_zoom">拡大縮小</string>
+    <string name="background_offset_x">水平位置</string>
+    <string name="background_offset_y">垂直位置</string>
+    <string name="background_reset">リセット</string>
+    <string name="background_adjust_no_template">先にテンプレートを選択してください</string>
 </resources>

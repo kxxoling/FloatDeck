@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">Сила параллакса при наклоне</string>
     <string name="tilt_sensitivity_desc">Насколько сильно смещаются обои и карточки при наклоне устройства</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">Настройка фона</string>
+    <string name="background_adjust_desc">Масштабирует и сдвигает фон выбранного шаблона</string>
+    <string name="background_zoom">Масштаб</string>
+    <string name="background_offset_x">Горизонтальное положение</string>
+    <string name="background_offset_y">Вертикальное положение</string>
+    <string name="background_reset">Сбросить</string>
+    <string name="background_adjust_no_template">Сначала выберите шаблон</string>
 </resources>

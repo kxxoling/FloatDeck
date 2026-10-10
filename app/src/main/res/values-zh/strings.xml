@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">倾斜视差强度</string>
     <string name="tilt_sensitivity_desc">设备倾斜时壁纸和立绘跟随移动的幅度</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">背景调整</string>
+    <string name="background_adjust_desc">缩放并移动当前模板的背景壁纸</string>
+    <string name="background_zoom">缩放</string>
+    <string name="background_offset_x">水平位置</string>
+    <string name="background_offset_y">垂直位置</string>
+    <string name="background_reset">重置</string>
+    <string name="background_adjust_no_template">请先选择模板</string>
 </resources>

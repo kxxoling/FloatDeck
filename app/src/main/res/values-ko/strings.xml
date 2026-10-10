@@ -91,4 +91,13 @@
     <!-- Tilt parallax sensitivity -->
     <string name="tilt_sensitivity_title">기울기 시차 강도</string>
     <string name="tilt_sensitivity_desc">기기를 기울일 때 배경화면과 캐릭터 카드가 움직이는 정도</string>
+
+    <!-- Background adjustment -->
+    <string name="background_adjust_title">배경 조정</string>
+    <string name="background_adjust_desc">선택한 템플릿의 배경화면을 확대하고 이동합니다</string>
+    <string name="background_zoom">확대/축소</string>
+    <string name="background_offset_x">수평 위치</string>
+    <string name="background_offset_y">수직 위치</string>
+    <string name="background_reset">초기화</string>
+    <string name="background_adjust_no_template">먼저 템플릿을 선택하세요</string>
 </resources>
