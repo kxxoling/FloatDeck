@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.opengl.GLES30
 import android.opengl.Matrix
 import app.floatdeck.data.BackgroundAdjustment
+import app.floatdeck.data.PortraitOverride
 import app.floatdeck.data.PortraitPosition
 import app.floatdeck.data.TemplateConfig
 import app.floatdeck.data.TemplateOverride
@@ -846,6 +847,7 @@ class FloatDeckRenderer(
                 touchY <= bounds[3]
             ) {
                 draggedPortraitIndex = portraitStates.indexOf(state)
+                selectedPortraitId = state.id
                 val maxOrder = portraitStates.maxOf { it.drawOrder }
                 state.drawOrder = maxOrder + 1
                 previousTouchX = touchX
@@ -913,6 +915,74 @@ class FloatDeckRenderer(
             state.velocityX = 0f
             state.velocityY = 0f
         }
+    }
+
+    // ==================================================================
+    // 布局编辑器支持
+    // ==================================================================
+
+    /** 最近一次按下命中的立绘 id（无命中/未加载为 null），供编辑器选中调整。 */
+    @Volatile
+    var selectedPortraitId: String? = null
+        private set
+
+    /** 编辑器：设置某张立绘的临时缩放/旋转调整（叠加在显式或内置位置之上）。 */
+    fun setPortraitAdjust(
+        portraitId: String,
+        extraScale: Float,
+        extraRotation: Float,
+    ) {
+        val state = portraitStates.find { it.id == portraitId } ?: return
+        state.extraScale = extraScale.coerceIn(0.3f, 3f)
+        state.extraRotation = extraRotation.coerceIn(-45f, 45f)
+    }
+
+    /** 编辑器：切换预览的锁屏/解锁状态（复用锁屏-解锁过渡动画）。 */
+    fun setPreviewLocked(locked: Boolean) {
+        isWaitingForUnlock = false
+        targetTransition = if (locked) 1f else 0f
+    }
+
+    /**
+     * 导出每张立绘的完整位置供编辑器保存。
+     *
+     * 正在预览的状态（[previewLocked]）把 base/拖动偏移与 extra 调整折算进
+     * 最终的屏幕比例坐标；另一个状态保留现有显式位置（无则为 null，即回退
+     * 内置布局），避免编辑锁屏布局时暗中改动解锁布局。
+     */
+    fun snapshotPortraitOverrides(previewLocked: Boolean): Map<String, PortraitOverride> {
+        val totalCount = portraitStates.size
+        val leftSideCount = (totalCount + 1) / 2
+        return portraitStates
+            .mapIndexed { globalIndex, state ->
+                val isOnLeftSide = globalIndex < leftSideCount
+                val sideIndex = if (isOnLeftSide) globalIndex else globalIndex - leftSideCount
+                val sideCount = if (isOnLeftSide) leftSideCount else totalCount - leftSideCount
+
+                val previewT = if (previewLocked) 1f else 0f
+                val previewed = computePlacement(state, globalIndex, totalCount, isOnLeftSide, sideIndex, sideCount, previewT)
+                val offsetXFrac = (state.baseOffsetX + state.offsetX) / screenWidthPixels
+                val offsetYFrac = (state.baseOffsetY + state.offsetY) / screenHeightPixels
+                val previewTilt =
+                    (if (previewLocked) state.lockedPosition else state.unlockedPosition)?.tiltOffset ?: 1f
+                val previewedPosition =
+                    PortraitPosition(
+                        xRatio = previewed[0] + offsetXFrac,
+                        yRatio = previewed[1] + offsetYFrac,
+                        rotation = previewed[3],
+                        scale = previewed[2],
+                        tiltOffset = previewTilt,
+                    )
+                val otherPosition = if (previewLocked) state.unlockedPosition else state.lockedPosition
+
+                state.id to
+                    if (previewLocked) {
+                        PortraitOverride(lockedPosition = previewedPosition, unlockedPosition = otherPosition)
+                    } else {
+                        PortraitOverride(lockedPosition = otherPosition, unlockedPosition = previewedPosition)
+                    }
+            }
+            .toMap()
     }
 
     fun onDoubleTap(

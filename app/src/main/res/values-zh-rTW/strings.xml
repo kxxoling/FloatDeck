@@ -100,4 +100,19 @@
     <string name="background_offset_y">垂直位置</string>
     <string name="background_reset">重設</string>
     <string name="background_adjust_no_template">請先選擇範本</string>
+
+    <!-- Layout editor -->
+    <string name="layout_editor_title">版面編輯器</string>
+    <string name="open_layout_editor">編輯版面</string>
+    <string name="layout_editor_drag_hint">拖動卡片進行排列；雙擊卡片可撤銷本次拖動</string>
+    <string name="layout_editor_state_locked">鎖定狀態</string>
+    <string name="layout_editor_state_unlocked">解鎖狀態</string>
+    <string name="layout_editor_no_selection">點擊立繪卡片後可調整其縮放與旋轉</string>
+    <string name="layout_editor_scale">卡片縮放</string>
+    <string name="layout_editor_rotation">卡片旋轉</string>
+    <string name="layout_editor_save">儲存</string>
+    <string name="layout_editor_saved">版面已儲存</string>
+    <string name="layout_editor_reset">重設位置</string>
+    <string name="layout_editor_reset_done">位置已重設</string>
+    <string name="layout_editor_close">關閉</string>
 </resources>

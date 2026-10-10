@@ -100,4 +100,19 @@
     <string name="background_offset_y">Position verticale</string>
     <string name="background_reset">Réinitialiser</string>
     <string name="background_adjust_no_template">Sélectionnez d\'abord un modèle</string>
+
+    <!-- Layout editor -->
+    <string name="layout_editor_title">Éditeur de mise en page</string>
+    <string name="open_layout_editor">Modifier la mise en page</string>
+    <string name="layout_editor_drag_hint">Faites glisser les cartes pour les disposer ; double-touchez pour annuler le déplacement</string>
+    <string name="layout_editor_state_locked">Écran verrouillé</string>
+    <string name="layout_editor_state_unlocked">Déverrouillé</string>
+    <string name="layout_editor_no_selection">Touchez une carte pour ajuster son échelle et sa rotation</string>
+    <string name="layout_editor_scale">Échelle de la carte</string>
+    <string name="layout_editor_rotation">Rotation de la carte</string>
+    <string name="layout_editor_save">Enregistrer</string>
+    <string name="layout_editor_saved">Mise en page enregistrée</string>
+    <string name="layout_editor_reset">Réinitialiser les positions</string>
+    <string name="layout_editor_reset_done">Positions réinitialisées</string>
+    <string name="layout_editor_close">Fermer</string>
 </resources>

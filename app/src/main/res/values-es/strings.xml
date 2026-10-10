@@ -100,4 +100,19 @@
     <string name="background_offset_y">Posición vertical</string>
     <string name="background_reset">Restablecer</string>
     <string name="background_adjust_no_template">Selecciona primero una plantilla</string>
+
+    <!-- Layout editor -->
+    <string name="layout_editor_title">Editor de diseño</string>
+    <string name="open_layout_editor">Editar diseño</string>
+    <string name="layout_editor_drag_hint">Arrastra las tarjetas para colocarlas; doble toque para deshacer el arrastre</string>
+    <string name="layout_editor_state_locked">Pantalla bloqueada</string>
+    <string name="layout_editor_state_unlocked">Desbloqueado</string>
+    <string name="layout_editor_no_selection">Toca una tarjeta para ajustar su escala y rotación</string>
+    <string name="layout_editor_scale">Escala de la tarjeta</string>
+    <string name="layout_editor_rotation">Rotación de la tarjeta</string>
+    <string name="layout_editor_save">Guardar</string>
+    <string name="layout_editor_saved">Diseño guardado</string>
+    <string name="layout_editor_reset">Restablecer posiciones</string>
+    <string name="layout_editor_reset_done">Posiciones restablecidas</string>
+    <string name="layout_editor_close">Cerrar</string>
 </resources>

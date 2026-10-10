@@ -100,4 +100,19 @@
     <string name="background_offset_y">수직 위치</string>
     <string name="background_reset">초기화</string>
     <string name="background_adjust_no_template">먼저 템플릿을 선택하세요</string>
+
+    <!-- Layout editor -->
+    <string name="layout_editor_title">레이아웃 편집기</string>
+    <string name="open_layout_editor">레이아웃 편집</string>
+    <string name="layout_editor_drag_hint">카드를 드래그하여 배치하세요. 두 번 탭하면 이동을 취소할 수 있습니다</string>
+    <string name="layout_editor_state_locked">잠금 화면</string>
+    <string name="layout_editor_state_unlocked">잠금 해제</string>
+    <string name="layout_editor_no_selection">카드를 탭하면 크기와 회전을 조정할 수 있습니다</string>
+    <string name="layout_editor_scale">카드 크기</string>
+    <string name="layout_editor_rotation">카드 회전</string>
+    <string name="layout_editor_save">저장</string>
+    <string name="layout_editor_saved">레이아웃이 저장되었습니다</string>
+    <string name="layout_editor_reset">위치 초기화</string>
+    <string name="layout_editor_reset_done">위치가 초기화되었습니다</string>
+    <string name="layout_editor_close">닫기</string>
 </resources>

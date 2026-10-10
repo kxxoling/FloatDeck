@@ -63,6 +63,22 @@ object Templates {
             null
         }
 
+    /**
+     * 按设置中的模板 id 解析定义：优先远程导入目录，其次内置 assets。
+     *
+     * @return 模板定义与其目录（内置模板时目录为 null）；找不到返回 null
+     */
+    fun resolveDef(
+        context: Context,
+        templateId: String,
+    ): Pair<TemplateDef, File?>? {
+        val remoteDir = File(context.filesDir, "${RemoteTemplateLoader.TEMPLATE_DIR}/$templateId")
+        if (remoteDir.isDirectory) {
+            loadTemplateFromDir(remoteDir)?.let { return it to remoteDir }
+        }
+        return loadTemplate(context, templateId)?.let { it to null }
+    }
+
     /** 解析 template.json 根对象；id/name/wallpaper/portraits 为必填。 */
     internal fun parseDef(json: JSONObject): TemplateDef {
         val leftArr = json.getJSONObject("portraits").getJSONArray("left")

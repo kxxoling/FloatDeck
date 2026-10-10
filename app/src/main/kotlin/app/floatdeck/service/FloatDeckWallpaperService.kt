@@ -12,13 +12,10 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import androidx.core.content.ContextCompat
 import app.floatdeck.data.PortraitOverride
-import app.floatdeck.data.RemoteTemplateLoader
-import app.floatdeck.data.TemplateDef
 import app.floatdeck.data.TemplateOverrides
 import app.floatdeck.data.Templates
 import app.floatdeck.gl.FloatDeckRenderer
 import app.floatdeck.sensor.SensorHandler
-import java.io.File
 import javax.microedition.khronos.egl.EGL10
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.egl.EGLContext
@@ -652,22 +649,12 @@ class GLWallpaperThread(
         preferredFrameRateMode = prefs.getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
         renderer.parallaxSensitivity = prefs.getFloat(KEY_TILT_SENSITIVITY, 1f)
 
-        // 尝试从远程模板加载，再从 assets 加载
-        val remoteLoader = RemoteTemplateLoader(context)
-        val remoteTemplateDir = File(context.filesDir, "remote_templates")
-        val remoteDir = File(remoteTemplateDir, savedId)
-        var def: TemplateDef? = null
-        var isRemote = false
-        if (remoteDir.isDirectory) {
-            def = Templates.loadTemplateFromDir(remoteDir)
-            isRemote = def != null
-        }
-        if (def == null) {
-            def = Templates.loadTemplate(context, savedId)
-        }
-        if (def != null) {
+        // 解析模板定义：优先远程导入目录，其次 assets
+        val resolved = Templates.resolveDef(context, savedId)
+        if (resolved != null) {
+            val (def, remoteDir) = resolved
             val config =
-                if (isRemote) {
+                if (remoteDir != null) {
                     Templates.toTemplateConfigFromDir(def, remoteDir)
                 } else {
                     Templates.toTemplateConfig(context, def)

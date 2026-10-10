@@ -100,4 +100,19 @@
     <string name="background_offset_y">Vertical position</string>
     <string name="background_reset">Reset</string>
     <string name="background_adjust_no_template">Select a template first</string>
+
+    <!-- Layout editor -->
+    <string name="layout_editor_title">Layout Editor</string>
+    <string name="open_layout_editor">Edit Layout</string>
+    <string name="layout_editor_drag_hint">Drag cards to arrange them; double-tap a card to undo its drag</string>
+    <string name="layout_editor_state_locked">Locked screen</string>
+    <string name="layout_editor_state_unlocked">Unlocked</string>
+    <string name="layout_editor_no_selection">Tap a portrait card to adjust its scale and rotation</string>
+    <string name="layout_editor_scale">Card scale</string>
+    <string name="layout_editor_rotation">Card rotation</string>
+    <string name="layout_editor_save">Save</string>
+    <string name="layout_editor_saved">Layout saved</string>
+    <string name="layout_editor_reset">Reset positions</string>
+    <string name="layout_editor_reset_done">Positions reset</string>
+    <string name="layout_editor_close">Close</string>
 </resources>

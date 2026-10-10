@@ -100,4 +100,19 @@
     <string name="background_offset_y">Вертикальное положение</string>
     <string name="background_reset">Сбросить</string>
     <string name="background_adjust_no_template">Сначала выберите шаблон</string>
+
+    <!-- Layout editor -->
+    <string name="layout_editor_title">Редактор макета</string>
+    <string name="open_layout_editor">Изменить макет</string>
+    <string name="layout_editor_drag_hint">Перетаскивайте карточки, чтобы расставить их; двойное касание отменяет перетаскивание</string>
+    <string name="layout_editor_state_locked">Экран блокировки</string>
+    <string name="layout_editor_state_unlocked">Разблокирован</string>
+    <string name="layout_editor_no_selection">Нажмите на карточку, чтобы настроить её масштаб и поворот</string>
+    <string name="layout_editor_scale">Масштаб карточки</string>
+    <string name="layout_editor_rotation">Поворот карточки</string>
+    <string name="layout_editor_save">Сохранить</string>
+    <string name="layout_editor_saved">Макет сохранён</string>
+    <string name="layout_editor_reset">Сбросить позиции</string>
+    <string name="layout_editor_reset_done">Позиции сброшены</string>
+    <string name="layout_editor_close">Закрыть</string>
 </resources>

@@ -450,6 +450,23 @@ fun SettingsScreen(
             // Background zoom/pan for the selected template (self-contained)
             item { BackgroundAdjustSettings(templateId = templateId) }
 
+            // Open the layout editor for the selected template (separate activity,
+            // entry point kept minimal for the settings-page redesign)
+            item {
+                Button(
+                    onClick = {
+                        context.startActivity(
+                            Intent(context, LayoutEditorActivity::class.java)
+                                .putExtra(LayoutEditorActivity.EXTRA_TEMPLATE_ID, templateId),
+                        )
+                    },
+                    enabled = templateId.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.open_layout_editor))
+                }
+            }
+
             // Render frame rate preference (Material3 exposed dropdown)
             item {
                 var frameRateMenuExpanded by remember { mutableStateOf(false) }
