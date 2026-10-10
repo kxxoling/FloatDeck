@@ -87,4 +87,8 @@
     <string name="error_template_no_portraits">Le champ portraits est manquant dans template.json</string>
     <string name="error_template_json_missing">template.json introuvable</string>
     <string name="error_zip_failed">Échec du traitement du ZIP : %1$s</string>
+
+    <!-- Tilt parallax sensitivity -->
+    <string name="tilt_sensitivity_title">Intensité du parallaxe d\'inclinaison</string>
+    <string name="tilt_sensitivity_desc">Amplitude de déplacement du fond et des portraits quand l\'appareil s\'incline</string>
 </resources>

@@ -87,4 +87,8 @@
     <string name="error_template_no_portraits">template.json에 portraits 필드가 없습니다</string>
     <string name="error_template_json_missing">template.json을 찾을 수 없습니다</string>
     <string name="error_zip_failed">ZIP 처리 실패: %1$s</string>
+
+    <!-- Tilt parallax sensitivity -->
+    <string name="tilt_sensitivity_title">기울기 시차 강도</string>
+    <string name="tilt_sensitivity_desc">기기를 기울일 때 배경화면과 캐릭터 카드가 움직이는 정도</string>
 </resources>

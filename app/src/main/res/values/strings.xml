@@ -87,4 +87,8 @@
     <string name="error_template_no_portraits">template.json is missing the portraits field</string>
     <string name="error_template_json_missing">template.json not found</string>
     <string name="error_zip_failed">ZIP processing failed: %1$s</string>
+
+    <!-- Tilt parallax sensitivity -->
+    <string name="tilt_sensitivity_title">Tilt Parallax Strength</string>
+    <string name="tilt_sensitivity_desc">How much device tilting moves the wallpaper and portraits</string>
 </resources>

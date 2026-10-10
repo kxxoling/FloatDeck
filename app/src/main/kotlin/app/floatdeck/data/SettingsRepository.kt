@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,7 @@ class SettingsRepository(
         private val KEY_PORTRAIT_EFFECT = stringPreferencesKey("portrait_effect")
         private val KEY_DRAG_ENABLED = booleanPreferencesKey("drag_enabled")
         private val KEY_FRAME_RATE_MODE = stringPreferencesKey("frame_rate_mode")
+        private val KEY_TILT_SENSITIVITY = floatPreferencesKey("tilt_sensitivity")
     }
 
     /** 当前选中的模板 ID。 */
@@ -110,6 +112,22 @@ class SettingsRepository(
             .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
             .edit()
             .putString("frame_rate_mode", mode)
+            .apply()
+    }
+
+    /** Gyroscope parallax sensitivity multiplier, default 1.0 (100%). */
+    val tiltSensitivity: Flow<Float> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_TILT_SENSITIVITY] ?: 1f
+        }
+
+    /** Save the tilt parallax sensitivity multiplier. */
+    suspend fun setTiltSensitivity(value: Float) {
+        context.dataStore.edit { it[KEY_TILT_SENSITIVITY] = value }
+        context
+            .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putFloat("tilt_sensitivity", value)
             .apply()
     }
 }

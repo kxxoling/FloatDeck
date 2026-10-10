@@ -443,6 +443,10 @@ fun SettingsScreen(
                 }
             }
 
+            // Tilt parallax sensitivity (self-contained component, kept in its
+            // own file so a settings-page redesign can move it freely)
+            item { TiltSensitivitySetting(repo = repo) }
+
             // Render frame rate preference (Material3 exposed dropdown)
             item {
                 var frameRateMenuExpanded by remember { mutableStateOf(false) }

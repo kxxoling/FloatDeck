@@ -87,4 +87,8 @@
     <string name="error_template_no_portraits">template.json 缺少 portraits 字段</string>
     <string name="error_template_json_missing">未找到 template.json</string>
     <string name="error_zip_failed">ZIP 处理失败：%1$s</string>
+
+    <!-- Tilt parallax sensitivity -->
+    <string name="tilt_sensitivity_title">倾斜视差强度</string>
+    <string name="tilt_sensitivity_desc">设备倾斜时壁纸和立绘跟随移动的幅度</string>
 </resources>

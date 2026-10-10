@@ -28,6 +28,7 @@ private const val KEY_TEMPLATE_ID = "template_id"
 private const val KEY_PORTRAIT_EFFECT = "portrait_effect"
 private const val KEY_DRAG_ENABLED = "drag_enabled"
 private const val KEY_FRAME_RATE_MODE = "frame_rate_mode"
+private const val KEY_TILT_SENSITIVITY = "tilt_sensitivity"
 
 /**
  * FloatDeck 动态壁纸服务入口。
@@ -59,6 +60,11 @@ class FloatDeckWallpaperService : WallpaperService() {
                     val mode = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
                     glThread?.updateFrameRatePreference(mode)
+                }
+                KEY_TILT_SENSITIVITY -> {
+                    val value = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getFloat(KEY_TILT_SENSITIVITY, 1f)
+                    glThread?.updateTiltSensitivity(value)
                 }
             }
         }
@@ -346,6 +352,14 @@ class GLWallpaperThread(
         frameCounter = DISPLAY_POLL_INTERVAL_FRAMES - 1
     }
 
+    /**
+     * Applies the tilt parallax sensitivity multiplier from settings.
+     * No template reload needed: the renderer reads the field every frame.
+     */
+    fun updateTiltSensitivity(value: Float) {
+        renderer.parallaxSensitivity = value
+    }
+
     override fun run() {
         if (!initEGL()) {
             Log.e(TAG, "EGL initialization failed")
@@ -597,6 +611,7 @@ class GLWallpaperThread(
                 else -> 0
             }
         preferredFrameRateMode = prefs.getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
+        renderer.parallaxSensitivity = prefs.getFloat(KEY_TILT_SENSITIVITY, 1f)
 
         // 尝试从远程模板加载，再从 assets 加载
         val remoteLoader = RemoteTemplateLoader(context)

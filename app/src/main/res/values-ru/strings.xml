@@ -87,4 +87,8 @@
     <string name="error_template_no_portraits">В template.json отсутствует поле portraits</string>
     <string name="error_template_json_missing">template.json не найден</string>
     <string name="error_zip_failed">Ошибка обработки ZIP: %1$s</string>
+
+    <!-- Tilt parallax sensitivity -->
+    <string name="tilt_sensitivity_title">Сила параллакса при наклоне</string>
+    <string name="tilt_sensitivity_desc">Насколько сильно смещаются обои и карточки при наклоне устройства</string>
 </resources>

@@ -87,4 +87,8 @@
     <string name="error_template_no_portraits">template.jsonにportraitsフィールドがありません</string>
     <string name="error_template_json_missing">template.jsonが見つかりません</string>
     <string name="error_zip_failed">ZIPの処理に失敗しました: %1$s</string>
+
+    <!-- Tilt parallax sensitivity -->
+    <string name="tilt_sensitivity_title">傾き視差の強さ</string>
+    <string name="tilt_sensitivity_desc">端末を傾けたときの壁紙とキャラカードの動きの大きさ</string>
 </resources>
