@@ -98,4 +98,18 @@
     <string name="background_zoom">拡大縮小</string>
     <string name="background_reset">リセット</string>
     <string name="background_adjust_no_template">先にテンプレートを選択してください</string>
+    <!-- Layout editor -->
+    <string name="layout_editor_title">レイアウトエディタ</string>
+    <string name="open_layout_editor">レイアウト編集</string>
+    <string name="layout_editor_drag_hint">カードをドラッグして配置します。ダブルタップで今回の移動を元に戻せます</string>
+    <string name="layout_editor_state_locked">ロック画面</string>
+    <string name="layout_editor_state_unlocked">ロック解除</string>
+    <string name="layout_editor_no_selection">カードをタップすると拡大率と回転を調整できます</string>
+    <string name="layout_editor_scale">カードの拡大率</string>
+    <string name="layout_editor_rotation">カードの回転</string>
+    <string name="layout_editor_save">保存</string>
+    <string name="layout_editor_saved">レイアウトを保存しました</string>
+    <string name="layout_editor_reset">位置をリセット</string>
+    <string name="layout_editor_reset_done">位置をリセットしました</string>
+    <string name="layout_editor_close">閉じる</string>
 </resources>

@@ -98,4 +98,18 @@
     <string name="background_zoom">Zoom</string>
     <string name="background_reset">Redefinir</string>
     <string name="background_adjust_no_template">Selecione primeiro um modelo</string>
+    <!-- Layout editor -->
+    <string name="layout_editor_title">Editor de layout</string>
+    <string name="open_layout_editor">Editar layout</string>
+    <string name="layout_editor_drag_hint">Arraste os cartões para posicioná-los; toque duas vezes para desfazer o arrasto</string>
+    <string name="layout_editor_state_locked">Tela bloqueada</string>
+    <string name="layout_editor_state_unlocked">Desbloqueado</string>
+    <string name="layout_editor_no_selection">Toque em um cartão para ajustar sua escala e rotação</string>
+    <string name="layout_editor_scale">Escala do cartão</string>
+    <string name="layout_editor_rotation">Rotação do cartão</string>
+    <string name="layout_editor_save">Salvar</string>
+    <string name="layout_editor_saved">Layout salvo</string>
+    <string name="layout_editor_reset">Redefinir posições</string>
+    <string name="layout_editor_reset_done">Posições redefinidas</string>
+    <string name="layout_editor_close">Fechar</string>
 </resources>
