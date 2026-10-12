@@ -98,4 +98,18 @@
     <string name="background_zoom">缩放</string>
     <string name="background_reset">重置</string>
     <string name="background_adjust_no_template">请先选择模板</string>
+    <!-- Layout editor -->
+    <string name="layout_editor_title">布局编辑器</string>
+    <string name="open_layout_editor">编辑布局</string>
+    <string name="layout_editor_drag_hint">拖动卡片进行排列；双击卡片可撤销本次拖动</string>
+    <string name="layout_editor_state_locked">锁屏状态</string>
+    <string name="layout_editor_state_unlocked">解锁状态</string>
+    <string name="layout_editor_no_selection">点击立绘卡片后可调整其缩放与旋转</string>
+    <string name="layout_editor_scale">卡片缩放</string>
+    <string name="layout_editor_rotation">卡片旋转</string>
+    <string name="layout_editor_save">保存</string>
+    <string name="layout_editor_saved">布局已保存</string>
+    <string name="layout_editor_reset">重置位置</string>
+    <string name="layout_editor_reset_done">位置已重置</string>
+    <string name="layout_editor_close">关闭</string>
 </resources>

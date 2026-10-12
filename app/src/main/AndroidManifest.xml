@@ -27,6 +27,12 @@
             android:exported="false"
             android:theme="@style/Theme.FloatDeck" />
 
+        <activity
+            android:name=".settings.LayoutEditorActivity"
+            android:exported="false"
+            android:label="@string/layout_editor_title"
+            android:theme="@style/Theme.FloatDeck" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

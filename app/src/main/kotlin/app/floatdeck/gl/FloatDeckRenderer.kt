@@ -39,6 +39,8 @@ data class PortraitState(
     val unlockedPosition: PortraitPosition? = null,
     var baseOffsetX: Float = 0f,
     var baseOffsetY: Float = 0f,
+    var extraScale: Float = 1f,
+    var extraRotation: Float = 0f,
 )
 
 // ============================================================================
@@ -753,10 +755,22 @@ class FloatDeckRenderer(
                 LEGACY_UNLOCKED_SCALE,
                 legacyUnlockedRotation(isOnLeftSide, sideIndex),
             )
-        val locked = placementValues(state.lockedPosition, legacyLocked)
-        val unlocked = placementValues(state.unlockedPosition, legacyUnlocked)
+        val locked = applyEditorAdjustments(placementValues(state.lockedPosition, legacyLocked), state)
+        val unlocked = applyEditorAdjustments(placementValues(state.unlockedPosition, legacyUnlocked), state)
         return interpolatePlacement(locked, unlocked, transitionT)
     }
+
+    /** Applies the editor's temporary scale/rotation on top of the resolved placement. */
+    private fun applyEditorAdjustments(
+        placement: FloatArray,
+        state: PortraitState,
+    ): FloatArray =
+        floatArrayOf(
+            placement[0],
+            placement[1],
+            placement[2] * state.extraScale,
+            placement[3] + state.extraRotation,
+        )
 
     private fun legacyLockedRotation(
         globalIndex: Int,
@@ -831,6 +845,7 @@ class FloatDeckRenderer(
                 touchY <= bounds[3]
             ) {
                 draggedPortraitIndex = portraitStates.indexOf(state)
+                selectedPortraitId = state.id
                 val maxOrder = portraitStates.maxOf { it.drawOrder }
                 state.drawOrder = maxOrder + 1
                 previousTouchX = touchX
@@ -899,6 +914,80 @@ class FloatDeckRenderer(
             state.velocityX = 0f
             state.velocityY = 0f
         }
+    }
+
+    // ==================================================================
+    // Layout editor support
+    // ==================================================================
+
+    /** Id of the last portrait hit by a touch-down (null when none/not loaded); used by the editor for selection. */
+    @Volatile
+    var selectedPortraitId: String? = null
+        private set
+
+    /** Editor: sets a portrait's temporary scale/rotation adjustment (applied on top of the explicit or built-in placement). */
+    fun setPortraitAdjust(
+        portraitId: String,
+        extraScale: Float,
+        extraRotation: Float,
+    ) {
+        val state = portraitStates.find { it.id == portraitId } ?: return
+        state.extraScale = extraScale.coerceIn(0.3f, 3f)
+        state.extraRotation = extraRotation.coerceIn(-45f, 45f)
+    }
+
+    /** Editor: switches the previewed locked/unlocked state (reuses the lock/unlock transition animation). */
+    fun setPreviewLocked(locked: Boolean) {
+        isWaitingForUnlock = false
+        targetTransition = if (locked) 1f else 0f
+    }
+
+    /** Image file names of all loaded portraits; used by the editor to build reset maps. */
+    fun portraitFiles(): List<String> = portraitStates.map { it.file }
+
+    /**
+     * Exports every portrait's placement for the editor to save.
+     *
+     * The previewed state ([previewLocked]) folds its base/drag offsets and
+     * editor adjustments into final screen-ratio coordinates; the other state
+     * keeps its existing explicit position (null = built-in layout), so
+     * editing one side never silently changes the other. Keyed by image file
+     * name.
+     */
+    fun snapshotPortraitPositions(previewLocked: Boolean): Map<String, Pair<PortraitPosition?, PortraitPosition?>> {
+        val totalCount = portraitStates.size
+        val leftSideCount = (totalCount + 1) / 2
+        return portraitStates
+            .mapIndexed { globalIndex, state ->
+                val isOnLeftSide = globalIndex < leftSideCount
+                val sideIndex = if (isOnLeftSide) globalIndex else globalIndex - leftSideCount
+                val sideCount = if (isOnLeftSide) leftSideCount else totalCount - leftSideCount
+
+                val previewT = if (previewLocked) 1f else 0f
+                val previewed =
+                    computePlacement(state, globalIndex, totalCount, isOnLeftSide, sideIndex, sideCount, previewT)
+                val offsetXFrac = (state.baseOffsetX + state.offsetX) / screenWidthPixels
+                val offsetYFrac = (state.baseOffsetY + state.offsetY) / screenHeightPixels
+                val previewTilt =
+                    (if (previewLocked) state.lockedPosition else state.unlockedPosition)?.tiltOffset ?: 1f
+                val previewedPosition =
+                    PortraitPosition(
+                        xRatio = previewed[0] + offsetXFrac,
+                        yRatio = previewed[1] + offsetYFrac,
+                        rotation = previewed[3],
+                        scale = previewed[2],
+                        tiltOffset = previewTilt,
+                    )
+                val otherPosition = if (previewLocked) state.unlockedPosition else state.lockedPosition
+
+                state.file to
+                    if (previewLocked) {
+                        Pair(previewedPosition, otherPosition)
+                    } else {
+                        Pair(otherPosition, previewedPosition)
+                    }
+            }
+            .toMap()
     }
 
     fun onDoubleTap(
