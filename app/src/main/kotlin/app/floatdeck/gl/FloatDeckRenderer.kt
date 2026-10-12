@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.opengl.GLES30
 import android.opengl.Matrix
+import app.floatdeck.data.PortraitPosition
 import app.floatdeck.data.TemplateConfig
 import java.nio.FloatBuffer
 import kotlin.math.abs
@@ -17,9 +18,14 @@ import kotlin.math.sin
 
 /**
  * 单张立绘卡片的运行时状态。
+ *
+ * @param lockedPosition explicit locked placement from the template (null = built-in layout)
+ * @param unlockedPosition explicit unlocked placement from the template (null = built-in layout)
+ * @param baseOffsetX/Y persisted user offsets from the template (pixels)
  */
 data class PortraitState(
     val id: String,
+    val file: String,
     val label: String,
     var textureId: Int = 0,
     var textureWidth: Int = 0,
@@ -29,6 +35,10 @@ data class PortraitState(
     var offsetY: Float = 0f,
     var velocityX: Float = 0f,
     var velocityY: Float = 0f,
+    val lockedPosition: PortraitPosition? = null,
+    val unlockedPosition: PortraitPosition? = null,
+    var baseOffsetX: Float = 0f,
+    var baseOffsetY: Float = 0f,
 )
 
 // ============================================================================
@@ -289,6 +299,11 @@ class FloatDeckRenderer(
         }
 
         template.portraits.forEachIndexed { index, config ->
+            // Positions and persisted offsets come from the template's own template.json;
+            // offsets are converted to pixels at the current screen size
+            val baseOffsetX = config.offsetX * screenWidthPixels
+            val baseOffsetY = config.offsetY * screenHeightPixels
+
             val result =
                 if (config.isRemote) {
                     loadTextureFromPath(config.assetPath)
@@ -299,17 +314,23 @@ class FloatDeckRenderer(
                 portraitStates.add(
                     PortraitState(
                         id = config.id,
+                        file = config.file,
                         label = config.label,
                         textureId = result.first,
                         textureWidth = result.second,
                         textureHeight = result.third,
                         drawOrder = index,
+                        lockedPosition = config.lockedPosition,
+                        unlockedPosition = config.unlockedPosition,
+                        baseOffsetX = baseOffsetX,
+                        baseOffsetY = baseOffsetY,
                     ),
                 )
             } else {
                 portraitStates.add(
                     PortraitState(
                         id = config.id,
+                        file = config.file,
                         label = config.label,
                         textureId =
                             TextureLoader.createPlaceholderTexture(
@@ -319,6 +340,10 @@ class FloatDeckRenderer(
                         textureWidth = 128,
                         textureHeight = 256,
                         drawOrder = index,
+                        lockedPosition = config.lockedPosition,
+                        unlockedPosition = config.unlockedPosition,
+                        baseOffsetX = baseOffsetX,
+                        baseOffsetY = baseOffsetY,
                     ),
                 )
             }
@@ -551,29 +576,28 @@ class FloatDeckRenderer(
 
             val transitionT = transitionProgress
 
-            // ---- 位置计算 ----
+            // ---- Placement: explicit (template.json) wins, otherwise the built-in layout ----
 
-            // 锁屏位置（使用当前布局）
-            val (lockedCenterX, lockedCenterY) = calculateLockedPosition(globalIndex, totalCount)
-            val lockedScale = 0.85f
-            val lockedRotation = (globalIndex - totalCount / 2) * 2.5f
+            val placement =
+                computePlacement(
+                    state,
+                    globalIndex,
+                    totalCount,
+                    isOnLeftSide,
+                    sideIndex,
+                    sideCount,
+                    transitionT,
+                )
 
-            // 解锁位置（两侧边缘）
-            val unlockedEdgeX = if (isOnLeftSide) 0.05f else 0.95f
-            val unlockedEdgeY = calculateUnlockedY(sideIndex, sideCount)
-            val unlockedScale = 0.64f
-            val unlockedRotation =
-                if (isOnLeftSide) -7.2f + sideIndex * 1.8f else 7.2f - sideIndex * 1.8f
-
-            // ---- 插值 ----
-
-            var drawX = lerp(unlockedEdgeX, lockedCenterX, transitionT) * screenWidthPixels
-            var drawY = lerp(unlockedEdgeY, lockedCenterY, transitionT) * screenHeightPixels
-            val drawScale = lerp(unlockedScale, lockedScale, transitionT)
-            val drawRotation = lerp(unlockedRotation, lockedRotation, transitionT)
+            var drawX = placement[0] * screenWidthPixels
+            var drawY = placement[1] * screenHeightPixels
+            val drawScale = placement[2]
+            val drawRotation = placement[3]
 
             // ---- Gyroscope parallax (always active) ----
-            // Subtle parallax offsets; portraits shift more than the background
+            // Subtle parallax offsets; portraits shift more than the background;
+            // explicit positions may carry a per-card tiltOffset (default 1),
+            // interpolated along with the lock/unlock transition
             val portraitParallax =
                 parallaxOffsets(
                     smoothedPitchY,
@@ -584,17 +608,20 @@ class FloatDeckRenderer(
                     PORTRAIT_PARALLAX_Y,
                     parallaxSensitivity,
                 )
-            drawX += portraitParallax[0]
-            drawY += portraitParallax[1]
+            val tiltLocked = state.lockedPosition?.tiltOffset ?: 1f
+            val tiltUnlocked = state.unlockedPosition?.tiltOffset ?: 1f
+            val tiltFactor = lerp(tiltUnlocked, tiltLocked, transitionT)
+            drawX += portraitParallax[0] * tiltFactor
+            drawY += portraitParallax[1] * tiltFactor
 
             // ---- 晃动动画（始终生效）----
             val sway = calculateSway(globalIndex)
             drawX += sway[0]
             drawY += sway[1]
 
-            // 用户拖拽偏移
-            drawX += state.offsetX
-            drawY += state.offsetY
+            // User offsets: persisted base + the current drag
+            drawX += state.baseOffsetX + state.offsetX
+            drawY += state.baseOffsetY + state.offsetY
 
             // ---- 绘制 ----
 
@@ -692,6 +719,54 @@ class FloatDeckRenderer(
         val yStep = (yEnd - yStart) / (sideCount - 1).coerceAtLeast(1)
         return (yStart + sideIndex * yStep).coerceIn(0.1f, 0.9f)
     }
+
+    // ==================================================================
+    // Placement resolution (explicit vs built-in layout)
+    // ==================================================================
+
+    /**
+     * Computes [x ratio, y ratio, scale, rotation] for a portrait at the
+     * current transition progress. An explicit position (from template.json)
+     * wins; otherwise the built-in layout applies.
+     */
+    private fun computePlacement(
+        state: PortraitState,
+        globalIndex: Int,
+        totalCount: Int,
+        isOnLeftSide: Boolean,
+        sideIndex: Int,
+        sideCount: Int,
+        transitionT: Float,
+    ): FloatArray {
+        val legacyLockedXY = calculateLockedPosition(globalIndex, totalCount)
+        val legacyLocked =
+            floatArrayOf(
+                legacyLockedXY.first,
+                legacyLockedXY.second,
+                LEGACY_LOCKED_SCALE,
+                legacyLockedRotation(globalIndex, totalCount),
+            )
+        val legacyUnlocked =
+            floatArrayOf(
+                if (isOnLeftSide) 0.05f else 0.95f,
+                calculateUnlockedY(sideIndex, sideCount),
+                LEGACY_UNLOCKED_SCALE,
+                legacyUnlockedRotation(isOnLeftSide, sideIndex),
+            )
+        val locked = placementValues(state.lockedPosition, legacyLocked)
+        val unlocked = placementValues(state.unlockedPosition, legacyUnlocked)
+        return interpolatePlacement(locked, unlocked, transitionT)
+    }
+
+    private fun legacyLockedRotation(
+        globalIndex: Int,
+        totalCount: Int,
+    ): Float = (globalIndex - totalCount / 2) * 2.5f
+
+    private fun legacyUnlockedRotation(
+        isOnLeftSide: Boolean,
+        sideIndex: Int,
+    ): Float = if (isOnLeftSide) -7.2f + sideIndex * 1.8f else 7.2f - sideIndex * 1.8f
 
     /**
      * 计算立绘的晃动偏移（带随机元素，始终生效）。
@@ -797,6 +872,35 @@ class FloatDeckRenderer(
         draggedPortraitIndex = -1
     }
 
+    /** Whether a portrait is currently being dragged (used at drag end to decide whether to persist). */
+    fun isPortraitDragged(): Boolean = draggedPortraitIndex >= 0
+
+    /**
+     * Cumulative user offsets per portrait (saved base + current drag),
+     * normalized by screen width/height. Keyed by the image file name for
+     * persisting into the template's template.json.
+     */
+    fun normalizedPortraitOffsets(): Map<String, Pair<Float, Float>> =
+        portraitStates.associate { state ->
+            state.file to
+                Pair(
+                    (state.baseOffsetX + state.offsetX) / screenWidthPixels,
+                    (state.baseOffsetY + state.offsetY) / screenHeightPixels,
+                )
+        }
+
+    /** Call after a successful persist: folds the drag offsets into base and zeroes them to avoid double counting. */
+    fun commitDragOffsets() {
+        portraitStates.forEach { state ->
+            state.baseOffsetX += state.offsetX
+            state.baseOffsetY += state.offsetY
+            state.offsetX = 0f
+            state.offsetY = 0f
+            state.velocityX = 0f
+            state.velocityY = 0f
+        }
+    }
+
     fun onDoubleTap(
         touchX: Float,
         touchY: Float,
@@ -846,16 +950,20 @@ class FloatDeckRenderer(
 
         val t = transitionProgress
 
-        val (lockedX, lockedY) = calculateLockedPosition(globalIndex, totalCount)
-        val lockedScale = 0.85f
+        val placement =
+            computePlacement(
+                state,
+                globalIndex,
+                totalCount,
+                isOnLeftSide,
+                sideIndex,
+                sideCount,
+                t,
+            )
 
-        val unlockedX = if (isOnLeftSide) 0.05f else 0.95f
-        val unlockedY = calculateUnlockedY(sideIndex, sideCount)
-        val unlockedScale = 0.64f
-
-        val centerX = lerp(unlockedX, lockedX, t) * screenWidthPixels + state.offsetX
-        val centerY = lerp(unlockedY, lockedY, t) * screenHeightPixels + state.offsetY
-        val scale = lerp(unlockedScale, lockedScale, t)
+        val centerX = placement[0] * screenWidthPixels + state.baseOffsetX + state.offsetX
+        val centerY = placement[1] * screenHeightPixels + state.baseOffsetY + state.offsetY
+        val scale = placement[2]
 
         val height = screenHeightPixels * portraitHeightScreenFraction * scale
         val width = height * portraitAspectRatio
@@ -880,6 +988,39 @@ class FloatDeckRenderer(
         internal const val BACKGROUND_PARALLAX_Y = 0.075f
         internal const val PORTRAIT_PARALLAX_X = 0.25f
         internal const val PORTRAIT_PARALLAX_Y = 0.2f
+
+        // Built-in layout parameters when no explicit position exists (identical to historical behavior)
+        internal const val LEGACY_LOCKED_SCALE = 0.85f
+        internal const val LEGACY_UNLOCKED_SCALE = 0.64f
+
+        /**
+         * Resolves a placement: the explicit position wins, otherwise the
+         * built-in layout values apply. [legacy] is [x, y, scale, rotation].
+         */
+        internal fun placementValues(
+            position: PortraitPosition?,
+            legacy: FloatArray,
+        ): FloatArray =
+            if (position != null) {
+                floatArrayOf(position.xRatio, position.yRatio, position.scale, position.rotation)
+            } else {
+                legacy
+            }
+
+        /** Interpolates between the locked/unlocked placements by transition progress. */
+        internal fun interpolatePlacement(
+            locked: FloatArray,
+            unlocked: FloatArray,
+            t: Float,
+        ): FloatArray {
+            val tc = t.coerceIn(0f, 1f)
+            return floatArrayOf(
+                unlocked[0] + (locked[0] - unlocked[0]) * tc,
+                unlocked[1] + (locked[1] - unlocked[1]) * tc,
+                unlocked[2] + (locked[2] - unlocked[2]) * tc,
+                unlocked[3] + (locked[3] - unlocked[3]) * tc,
+            )
+        }
 
         // Upper bound for the user background zoom; the pan exists to fix
         // aspect-ratio framing, not to create a zoom effect
