@@ -34,13 +34,21 @@ data class PortraitPosition(
     val tiltOffset: Float = 1f,
 )
 
-/** 单张肖像卡片配置：资源路径 + 锁屏/解锁两种状态的位置。 */
+/**
+ * Single portrait card config: asset path + optional explicit locked/unlocked
+ * positions and user drag offsets. When a position is null the renderer uses
+ * its built-in layout; offsets are screen-size fractions persisted in the
+ * template's own template.json.
+ */
 data class PortraitConfig(
     val id: String,
+    val file: String,
     val assetPath: String,
     val label: String,
-    val lockedPosition: PortraitPosition,
-    val unlockedPosition: PortraitPosition,
+    val lockedPosition: PortraitPosition? = null,
+    val unlockedPosition: PortraitPosition? = null,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
     val isRemote: Boolean = false,
 )
 

@@ -194,11 +194,33 @@ class FloatDeckWallpaperService : WallpaperService() {
                         renderer.onTouchMove(event.x, event.y)
                     }
                     MotionEvent.ACTION_UP -> {
+                        val wasDragging = renderer.isPortraitDragged()
                         renderer.onTouchUp()
+                        if (wasDragging) {
+                            persistPortraitOffsets()
+                        }
                     }
                 }
             }
             super.onTouchEvent(event)
+        }
+
+        /**
+         * After a drag ends, silently persists the portrait user offsets into
+         * the current template's template.json (no revision bump, no hot
+         * reload; the renderer folds them into its base offsets).
+         */
+        private fun persistPortraitOffsets() {
+            val templateId =
+                getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .getString(KEY_TEMPLATE_ID, "") ?: ""
+            if (templateId.isBlank()) return
+            val offsets = renderer.normalizedPortraitOffsets()
+            if (offsets.isEmpty()) return
+            runCatching {
+                Templates.savePortraitOffsets(applicationContext, templateId, offsets, bumpRevision = false)
+                renderer.commitDragOffsets()
+            }
         }
 
         private fun startGLThread() {
@@ -635,22 +657,11 @@ class GLWallpaperThread(
             def = Templates.loadTemplate(context, savedId)
         }
         if (def != null) {
-            val rect = surfaceHolder.surfaceFrame
             val config =
                 if (isRemote) {
-                    Templates.toTemplateConfigFromDir(
-                        def,
-                        remoteDir,
-                        rect.width().toFloat(),
-                        rect.height().toFloat(),
-                    )
+                    Templates.toTemplateConfigFromDir(def, remoteDir)
                 } else {
-                    Templates.toTemplateConfig(
-                        context,
-                        def,
-                        rect.width().toFloat(),
-                        rect.height().toFloat(),
-                    )
+                    Templates.toTemplateConfig(context, def)
                 }
             renderer.loadTemplate(config)
             // User background zoom lives in the template's own template.json
