@@ -67,6 +67,10 @@
     <string name="update_network_error">Erreur réseau, veuillez vérifier votre connexion</string>
     <string name="update_timeout">Délai d\'attente dépassé, veuillez réessayer plus tard</string>
     <string name="open_source_licenses">Licences open source</string>
+    <string name="project_support_hint">Si FloatDeck vous plaît, voici quelques façons de le soutenir</string>
+    <string name="star_project_title">Mettre une étoile au projet</string>
+    <string name="follow_developer_title">Suivre le développeur</string>
+    <string name="project_info_title">À propos du projet</string>
     <string name="back">Retour</string>
 
     <!-- Remote template import: security prompts -->

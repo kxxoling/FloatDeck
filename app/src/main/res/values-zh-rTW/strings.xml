@@ -67,6 +67,10 @@
     <string name="update_network_error">網路錯誤，請檢查網路連線</string>
     <string name="update_timeout">請求逾時，請稍後再試</string>
     <string name="open_source_licenses">開源授權條款</string>
+    <string name="project_support_hint">如果你喜歡 FloatDeck，可以透過這些方式支持一下</string>
+    <string name="star_project_title">替專案點個 Star</string>
+    <string name="follow_developer_title">追蹤開發者</string>
+    <string name="project_info_title">關於專案</string>
     <string name="back">返回</string>
 
     <!-- Remote template import: security prompts -->

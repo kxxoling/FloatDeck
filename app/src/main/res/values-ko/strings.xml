@@ -67,6 +67,10 @@
     <string name="update_network_error">네트워크 오류, 연결을 확인하세요</string>
     <string name="update_timeout">요청 시간 초과, 나중에 다시 시도하세요</string>
     <string name="open_source_licenses">오픈소스 라이선스</string>
+    <string name="project_support_hint">FloatDeck가 마음에 들었다면 응원해 주세요</string>
+    <string name="star_project_title">프로젝트에 별 주기</string>
+    <string name="follow_developer_title">개발자 팔로우</string>
+    <string name="project_info_title">프로젝트 정보</string>
     <string name="back">뒤로</string>
 
     <!-- 원격 템플릿 가져오기: 보안 확인 -->

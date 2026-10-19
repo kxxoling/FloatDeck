@@ -67,6 +67,10 @@
     <string name="update_network_error">ネットワークエラーです。接続を確認してください</string>
     <string name="update_timeout">リクエストがタイムアウトしました。後で再試行してください</string>
     <string name="open_source_licenses">オープンソースライセンス</string>
+    <string name="project_support_hint">FloatDeck を気に入ったら、ぜひ応援してください</string>
+    <string name="star_project_title">プロジェクトにスターを付ける</string>
+    <string name="follow_developer_title">開発者をフォロー</string>
+    <string name="project_info_title">プロジェクトについて</string>
     <string name="back">戻る</string>
 
     <!-- リモートテンプレートインポート: セキュリティ確認 -->
