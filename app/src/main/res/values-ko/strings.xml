@@ -95,6 +95,9 @@
     <string name="error_zip_failed">ZIP 처리 실패: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="settings_group_portrait">캐릭터</string>
+    <string name="settings_group_scene">시차와 배경</string>
+    <string name="settings_group_performance">성능</string>
     <string name="sway_enabled_title">캐릭터 흔들림</string>
     <string name="sway_amplitude_title">흔들림 진폭</string>
     <string name="sway_amplitude_desc">대기 중 캐릭터가 상하로 떠오르는 폭</string>

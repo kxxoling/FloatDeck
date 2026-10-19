@@ -1008,8 +1008,19 @@ private fun TemplateSection(
     }
 }
 
-/** Wallpaper settings group (template-scoped): portrait effect, drag toggle,
- * tilt sensitivity, background zoom and frame rate. */
+/** Wallpaper settings (template-scoped), grouped into labeled cards:
+ * portraits (effect/drag/sway), parallax & background, performance. */
+/** Bold header at the top of a settings group card. */
+@Composable
+private fun SettingsGroupLabel(titleRes: Int) {
+    Text(
+        text = stringResource(titleRes),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
+    )
+}
+
 @Composable
 private fun BehaviorSection(
     selectedEffect: PortraitEffect,
@@ -1026,10 +1037,11 @@ private fun BehaviorSection(
     backgroundAdjust: @Composable () -> Unit = {},
 ) {
     GroupCard {
+        SettingsGroupLabel(R.string.settings_group_portrait)
         Text(
             text = stringResource(R.string.portrait_effect),
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
         )
         EffectSelector(
             selected = selectedEffect,
@@ -1057,8 +1069,16 @@ private fun BehaviorSection(
             )
         }
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { swaySetting() }
+    }
+    Spacer(Modifier.height(16.dp))
+    GroupCard {
+        SettingsGroupLabel(R.string.settings_group_scene)
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { tiltSetting() }
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { backgroundAdjust() }
+    }
+    Spacer(Modifier.height(16.dp))
+    GroupCard {
+        SettingsGroupLabel(R.string.settings_group_performance)
         Box {
             var menuExpanded by remember { mutableStateOf(false) }
             SettingsRow(

@@ -95,6 +95,9 @@
     <string name="error_zip_failed">Falha ao processar o ZIP: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="settings_group_portrait">Retratos</string>
+    <string name="settings_group_scene">Paralaxe e fundo</string>
+    <string name="settings_group_performance">Desempenho</string>
     <string name="sway_enabled_title">Balanço dos retratos</string>
     <string name="sway_amplitude_title">Amplitude do balanço</string>
     <string name="sway_amplitude_desc">Quanto os retratos flutuam verticalmente em repouso</string>

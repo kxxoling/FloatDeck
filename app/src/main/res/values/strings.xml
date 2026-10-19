@@ -95,6 +95,9 @@
     <string name="error_zip_failed">ZIP processing failed: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="settings_group_portrait">Portraits</string>
+    <string name="settings_group_scene">Parallax &amp; Background</string>
+    <string name="settings_group_performance">Performance</string>
     <string name="sway_enabled_title">Portrait Sway</string>
     <string name="sway_amplitude_title">Sway Amplitude</string>
     <string name="sway_amplitude_desc">How far portraits drift up and down while idle</string>
