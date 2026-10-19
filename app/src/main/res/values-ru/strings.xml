@@ -95,6 +95,9 @@
     <string name="error_zip_failed">Ошибка обработки ZIP: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">Покачивание персонажей</string>
+    <string name="sway_amplitude_title">Амплитуда покачивания</string>
+    <string name="sway_amplitude_desc">Размах вертикального дрейфа персонажей в покое</string>
     <string name="tilt_sensitivity_title">Сила параллакса при наклоне</string>
     <string name="tilt_sensitivity_desc">Насколько сильно смещаются обои и карточки при наклоне устройства</string>
 

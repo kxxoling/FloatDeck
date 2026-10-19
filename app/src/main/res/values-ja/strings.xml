@@ -95,6 +95,9 @@
     <string name="error_zip_failed">ZIPの処理に失敗しました: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">立ち絵の揺れ</string>
+    <string name="sway_amplitude_title">揺れの振幅</string>
+    <string name="sway_amplitude_desc">待機中の立ち絵が上下に浮遊する幅</string>
     <string name="tilt_sensitivity_title">傾き視差の強さ</string>
     <string name="tilt_sensitivity_desc">端末を傾けたときの壁紙とキャラカードの動きの大きさ</string>
 

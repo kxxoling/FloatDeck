@@ -95,6 +95,9 @@
     <string name="error_zip_failed">ZIP processing failed: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">Portrait Sway</string>
+    <string name="sway_amplitude_title">Sway Amplitude</string>
+    <string name="sway_amplitude_desc">How far portraits drift up and down while idle</string>
     <string name="tilt_sensitivity_title">Tilt Parallax Strength</string>
     <string name="tilt_sensitivity_desc">How much device tilting moves the wallpaper and portraits</string>
 

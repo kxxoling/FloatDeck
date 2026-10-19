@@ -95,6 +95,9 @@
     <string name="error_zip_failed">ZIP 처리 실패: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">캐릭터 흔들림</string>
+    <string name="sway_amplitude_title">흔들림 진폭</string>
+    <string name="sway_amplitude_desc">대기 중 캐릭터가 상하로 떠오르는 폭</string>
     <string name="tilt_sensitivity_title">기울기 시차 강도</string>
     <string name="tilt_sensitivity_desc">기기를 기울일 때 배경화면과 캐릭터 카드가 움직이는 정도</string>
 

@@ -95,6 +95,9 @@
     <string name="error_zip_failed">Error al procesar el ZIP: %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">Balanceo de retratos</string>
+    <string name="sway_amplitude_title">Amplitud del balanceo</string>
+    <string name="sway_amplitude_desc">Cuánto se desplazan verticalmente los retratos en reposo</string>
     <string name="tilt_sensitivity_title">Intensidad del paralaje al inclinar</string>
     <string name="tilt_sensitivity_desc">Cuánto se mueven el fondo y los retratos al inclinar el dispositivo</string>
 

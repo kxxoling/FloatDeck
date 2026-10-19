@@ -95,6 +95,9 @@
     <string name="error_zip_failed">ZIP 處理失敗：%1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">立繪晃動</string>
+    <string name="sway_amplitude_title">晃動幅度</string>
+    <string name="sway_amplitude_desc">待機時立繪上下浮動的幅度</string>
     <string name="tilt_sensitivity_title">傾斜視差強度</string>
     <string name="tilt_sensitivity_desc">裝置傾斜時桌布與立繪跟隨移動的幅度</string>
 

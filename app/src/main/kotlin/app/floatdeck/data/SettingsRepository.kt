@@ -31,6 +31,8 @@ class SettingsRepository(
         private val KEY_DRAG_ENABLED = booleanPreferencesKey("drag_enabled")
         private val KEY_FRAME_RATE_MODE = stringPreferencesKey("frame_rate_mode")
         private val KEY_TILT_SENSITIVITY = floatPreferencesKey("tilt_sensitivity")
+        private val KEY_SWAY_ENABLED = booleanPreferencesKey("sway_enabled")
+        private val KEY_SWAY_AMPLITUDE = floatPreferencesKey("sway_amplitude")
     }
 
     /** 当前选中的模板 ID。 */
@@ -128,6 +130,38 @@ class SettingsRepository(
             .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
             .edit()
             .putFloat("tilt_sensitivity", value)
+            .apply()
+    }
+
+    /** Whether the portrait idle sway is enabled, default true. */
+    val swayEnabled: Flow<Boolean> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_SWAY_ENABLED] ?: true
+        }
+
+    /** Save the portrait sway enabled state. */
+    suspend fun setSwayEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SWAY_ENABLED] = enabled }
+        context
+            .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("sway_enabled", enabled)
+            .apply()
+    }
+
+    /** Portrait idle sway amplitude multiplier, default 1.0 (100%). */
+    val swayAmplitude: Flow<Float> =
+        context.dataStore.data.map { prefs ->
+            prefs[KEY_SWAY_AMPLITUDE] ?: 1f
+        }
+
+    /** Save the portrait sway amplitude multiplier. */
+    suspend fun setSwayAmplitude(value: Float) {
+        context.dataStore.edit { it[KEY_SWAY_AMPLITUDE] = value }
+        context
+            .getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putFloat("sway_amplitude", value)
             .apply()
     }
 }

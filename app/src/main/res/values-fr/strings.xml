@@ -95,6 +95,9 @@
     <string name="error_zip_failed">Échec du traitement du ZIP : %1$s</string>
 
     <!-- Tilt parallax sensitivity -->
+    <string name="sway_enabled_title">Balancement des portraits</string>
+    <string name="sway_amplitude_title">Amplitude du balancement</string>
+    <string name="sway_amplitude_desc">Amplitude du mouvement vertical des portraits au repos</string>
     <string name="tilt_sensitivity_title">Intensité du parallaxe d\'inclinaison</string>
     <string name="tilt_sensitivity_desc">Amplitude de déplacement du fond et des portraits quand l\'appareil s\'incline</string>
 

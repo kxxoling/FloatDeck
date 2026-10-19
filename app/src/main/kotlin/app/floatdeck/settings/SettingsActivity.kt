@@ -188,6 +188,7 @@ fun SettingsScreen(
     var templateId by remember { mutableStateOf("") }
     var selectedEffect by remember { mutableStateOf(PortraitEffect.NONE) }
     var dragEnabled by remember { mutableStateOf(true) }
+    var swayEnabled by remember { mutableStateOf(true) }
     var templates by remember { mutableStateOf<List<TemplateUi>>(emptyList()) }
     var templatesVersion by remember { mutableIntStateOf(0) }
     var showWallpaperSettings by rememberSaveable { mutableStateOf(false) }
@@ -224,6 +225,7 @@ fun SettingsScreen(
     remember {
         scope.launch {
             repo.dragEnabled.collect { dragEnabled = it }
+            repo.swayEnabled.collect { swayEnabled = it }
         }
     }
     remember {
@@ -548,6 +550,9 @@ fun SettingsScreen(
                                         onEffectChange = { scope.launch { repo.setPortraitEffect(it) } },
                                         dragEnabled = dragEnabled,
                                         onDragChange = { scope.launch { repo.setDragEnabled(it) } },
+                                        swayEnabled = swayEnabled,
+                                        onSwayChange = { scope.launch { repo.setSwayEnabled(it) } },
+                                        swaySetting = { SwayAmplitudeSetting(repo = repo) },
                                         frameRateOptions = frameRateOptions,
                                         currentFrameRateMode = currentFrameRateMode,
                                         onFrameRateChange = { scope.launch { repo.setFrameRateMode(it) } },
@@ -584,6 +589,9 @@ fun SettingsScreen(
                                 onEffectChange = { scope.launch { repo.setPortraitEffect(it) } },
                                 dragEnabled = dragEnabled,
                                 onDragChange = { scope.launch { repo.setDragEnabled(it) } },
+                                swayEnabled = swayEnabled,
+                                onSwayChange = { scope.launch { repo.setSwayEnabled(it) } },
+                                swaySetting = { SwayAmplitudeSetting(repo = repo) },
                                 frameRateOptions = frameRateOptions,
                                 currentFrameRateMode = currentFrameRateMode,
                                 onFrameRateChange = { scope.launch { repo.setFrameRateMode(it) } },
@@ -1008,6 +1016,9 @@ private fun BehaviorSection(
     onEffectChange: (PortraitEffect) -> Unit,
     dragEnabled: Boolean,
     onDragChange: (Boolean) -> Unit,
+    swayEnabled: Boolean,
+    onSwayChange: (Boolean) -> Unit,
+    swaySetting: @Composable () -> Unit = {},
     frameRateOptions: List<Pair<String, String>>,
     currentFrameRateMode: String,
     onFrameRateChange: (String) -> Unit,
@@ -1035,6 +1046,17 @@ private fun BehaviorSection(
                 onCheckedChange = onDragChange,
             )
         }
+        SettingsRow(
+            title = stringResource(R.string.sway_enabled_title),
+            iconRes = R.drawable.ic_tune,
+            onClick = { onSwayChange(!swayEnabled) },
+        ) {
+            Switch(
+                checked = swayEnabled,
+                onCheckedChange = onSwayChange,
+            )
+        }
+        Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { swaySetting() }
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { tiltSetting() }
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { backgroundAdjust() }
         Box {

@@ -171,6 +171,9 @@ class FloatDeckRenderer(
     @Volatile
     var parallaxSensitivity = 1f
 
+    /** Idle sway amplitude multiplier (0 disables sway); adjustable from settings. */
+    var swayAmplitude = 1f
+
     /** User background zoom multiplier (1 = exact cover). Loaded by the wallpaper service from the template's own template.json. */
     @Volatile
     var backgroundZoom = 1f
@@ -708,7 +711,7 @@ class FloatDeckRenderer(
         val amplitude = maxAmplitude * (1f + amplitudeVariation)
         val frequency = 0.8f * (1f + frequencyVariation)
 
-        val offsetY = sin(swayTimeSeconds * frequency + phaseOffset) * amplitude
+        val offsetY = sin(swayTimeSeconds * frequency + phaseOffset) * amplitude * swayAmplitude
 
         return floatArrayOf(0f, offsetY)
     }
