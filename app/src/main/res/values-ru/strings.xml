@@ -67,6 +67,10 @@
     <string name="update_network_error">Ошибка сети, проверьте подключение</string>
     <string name="update_timeout">Время ожидания истекло, попробуйте позже</string>
     <string name="open_source_licenses">Лицензии с открытым исходным кодом</string>
+    <string name="project_support_hint">Если вам нравится FloatDeck, вот несколько способов поддержать проект</string>
+    <string name="star_project_title">Поставить звезду проекту</string>
+    <string name="follow_developer_title">Подписаться на разработчика</string>
+    <string name="project_info_title">О проекте</string>
     <string name="back">Назад</string>
 
     <!-- Remote template import: security prompts -->

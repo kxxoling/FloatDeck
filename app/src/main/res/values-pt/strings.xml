@@ -67,6 +67,10 @@
     <string name="update_network_error">Erro de rede, verifique sua conexão</string>
     <string name="update_timeout">Tempo limite esgotado, tente novamente mais tarde</string>
     <string name="open_source_licenses">Licenças de código aberto</string>
+    <string name="project_support_hint">Se você gosta do FloatDeck, aqui estão algumas formas de apoiá-lo</string>
+    <string name="star_project_title">Dar uma estrela ao projeto</string>
+    <string name="follow_developer_title">Seguir o desenvolvedor</string>
+    <string name="project_info_title">Sobre o projeto</string>
     <string name="back">Voltar</string>
 
     <!-- Remote template import: security prompts -->

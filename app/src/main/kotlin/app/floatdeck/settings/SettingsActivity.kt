@@ -44,7 +44,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -83,7 +82,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.floatdeck.BuildConfig
 import app.floatdeck.CrashLogCollector
 import app.floatdeck.FloatDeckApp
 import app.floatdeck.R
@@ -1063,78 +1061,6 @@ private fun ImportSection(
             subtitle = stringResource(R.string.local_import_desc),
             iconRes = R.drawable.ic_folder,
             onClick = onLocal,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/** Help & about group: crash logs, update check, open-source licenses. */
-@Composable
-private fun AboutSection(
-    crashLogCount: Int,
-    onCrashLogs: () -> Unit,
-    checkingUpdate: Boolean,
-    onCheckUpdate: () -> Unit,
-    onLicenses: () -> Unit,
-) {
-    GroupCard {
-        SettingsRow(
-            title = stringResource(R.string.crash_logs_title),
-            iconRes = R.drawable.ic_bug,
-            iconTint = MaterialTheme.colorScheme.error,
-            onClick = onCrashLogs,
-        ) {
-            if (crashLogCount > 0) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = crashLogCount.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onError,
-                    )
-                }
-                Spacer(Modifier.width(6.dp))
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        SettingsRow(
-            title = stringResource(R.string.check_for_updates),
-            subtitle = stringResource(R.string.current_version, BuildConfig.VERSION_NAME),
-            iconRes = R.drawable.ic_update,
-            onClick = onCheckUpdate,
-        ) {
-            if (checkingUpdate) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        SettingsRow(
-            title = stringResource(R.string.open_source_licenses),
-            iconRes = R.drawable.ic_doc,
-            onClick = onLicenses,
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
