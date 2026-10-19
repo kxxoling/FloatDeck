@@ -7,6 +7,11 @@ Android live wallpaper with gyroscope parallax effect and floating character por
 
 > **User Guide:** [English](README.md) | [中文](USAGE.zh-CN.md) | [日本語](USAGE.ja-JP.md) | [한국어](USAGE.ko-KR.md)
 
+<details open>
+<summary>Screenshot</summary>
+<img src="screenshots/home.png" alt="FloatDeck home screen" width="800">
+</details>
+
 ## Project Structure
 
 ```
