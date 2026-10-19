@@ -6,6 +6,8 @@
     <string name="template_title">Modelo</string>
     <string name="no_templates_hint">Ainda não há modelos. Importe um abaixo para começar.</string>
     <string name="imported_templates">Modelos importados</string>
+    <string name="delete_template_confirm">Excluir \"%1$s\"? Esta ação não pode ser desfeita.</string>
+    <string name="delete_template">Excluir modelo</string>
     <string name="delete">Excluir</string>
     <string name="portrait_effect">Efeito de retrato</string>
     <string name="effect_none">Nenhum</string>

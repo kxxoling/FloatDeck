@@ -6,6 +6,8 @@
     <string name="template_title">Plantilla</string>
     <string name="no_templates_hint">Aún no hay plantillas. Importa una a continuación para empezar.</string>
     <string name="imported_templates">Plantillas importadas</string>
+    <string name="delete_template_confirm">¿Eliminar \"%1$s\"? Esta acción no se puede deshacer.</string>
+    <string name="delete_template">Eliminar plantilla</string>
     <string name="delete">Eliminar</string>
     <string name="portrait_effect">Efecto de retrato</string>
     <string name="effect_none">Ninguno</string>
