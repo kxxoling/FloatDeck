@@ -6,6 +6,8 @@
     <string name="template_title">Шаблон</string>
     <string name="no_templates_hint">Шаблонов пока нет. Импортируйте один ниже, чтобы начать.</string>
     <string name="imported_templates">Импортированные шаблоны</string>
+    <string name="delete_template_confirm">Удалить « %1$s »? Это действие нельзя отменить.</string>
+    <string name="delete_template">Удалить шаблон</string>
     <string name="delete">Удалить</string>
     <string name="portrait_effect">Эффект портрета</string>
     <string name="effect_none">Нет</string>

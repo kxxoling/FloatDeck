@@ -6,6 +6,8 @@
     <string name="template_title">Template</string>
     <string name="no_templates_hint">No templates yet. Import one below to get started.</string>
     <string name="imported_templates">Imported Templates</string>
+    <string name="delete_template_confirm">Delete \"%1$s\"? This action cannot be undone.</string>
+    <string name="delete_template">Delete Template</string>
     <string name="delete">Delete</string>
     <string name="portrait_effect">Portrait Effect</string>
     <string name="effect_none">None</string>

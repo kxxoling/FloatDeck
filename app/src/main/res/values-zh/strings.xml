@@ -6,6 +6,8 @@
     <string name="template_title">模板</string>
     <string name="no_templates_hint">暂无模板，请先在下方导入主题</string>
     <string name="imported_templates">已导入的模板</string>
+    <string name="delete_template_confirm">确定要删除「%1$s」吗？此操作无法撤销。</string>
+    <string name="delete_template">删除模板</string>
     <string name="delete">删除</string>
     <string name="portrait_effect">立绘特效</string>
     <string name="effect_none">无</string>

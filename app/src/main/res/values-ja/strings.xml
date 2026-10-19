@@ -6,6 +6,8 @@
     <string name="template_title">テンプレート</string>
     <string name="no_templates_hint">テンプレートがありません。下のインポートから始めましょう。</string>
     <string name="imported_templates">インポート済みテンプレート</string>
+    <string name="delete_template_confirm">「%1$s」を削除しますか？この操作は元に戻せません。</string>
+    <string name="delete_template">テンプレートを削除</string>
     <string name="delete">削除</string>
     <string name="portrait_effect">立ち絵エフェクト</string>
     <string name="effect_none">なし</string>

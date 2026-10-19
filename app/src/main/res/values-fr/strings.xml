@@ -6,6 +6,8 @@
     <string name="template_title">Modèle</string>
     <string name="no_templates_hint">Aucun modèle pour l\'instant. Importez-en un ci-dessous pour commencer.</string>
     <string name="imported_templates">Modèles importés</string>
+    <string name="delete_template_confirm">Supprimer « %1$s » ? Cette action est irréversible.</string>
+    <string name="delete_template">Supprimer le modèle</string>
     <string name="delete">Supprimer</string>
     <string name="portrait_effect">Effet de portrait</string>
     <string name="effect_none">Aucun</string>
