@@ -1,14 +1,17 @@
 package app.floatdeck.data
 
 import android.content.Context
-import app.floatdeck.R
 import org.json.JSONObject
 import java.io.File
 
-/** 模板 JSON 文件中的单个肖像条目。 */
+/** A single portrait entry in template.json (position and offset fields optional; when absent the renderer applies its built-in layout). */
 data class TemplateFile(
     val file: String,
     val label: String,
+    val lockedPosition: PortraitPosition? = null,
+    val unlockedPosition: PortraitPosition? = null,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f,
 )
 
 /**
@@ -28,48 +31,31 @@ data class TemplateDef(
 )
 
 /**
- * 模板加载与布局计算。
+ * Template loading and saving.
  *
- * 从 assets/templates/<id>/template.json 读取配置，
- * 根据屏幕尺寸计算出每张肖像在锁屏/解锁两种状态下的位置参数。
+ * All user customizations (background zoom, portrait positions and offsets)
+ * are written straight back into the template's own template.json; missing
+ * fields fall back to defaults when read.
  */
 object Templates {
     private const val TEMPLATES_DIR = "templates"
+    private const val PREFS_NAME = "settings_prefs"
 
-    /** 从文件系统目录加载模板定义（用于远程导入的模板）。 */
-    fun loadTemplateFromDir(dir: File): TemplateDef? =
-        try {
-            val jsonFile = File(dir, "template.json")
-            val jsonStr = jsonFile.readText()
-            val json = JSONObject(jsonStr)
+    /** SharedPreferences key bumped on every template.json write; the wallpaper service hot-reloads on change. */
+    const val KEY_TEMPLATE_REVISION = "template_revision"
 
-            val leftArr = json.getJSONObject("portraits").getJSONArray("left")
-            val rightArr = json.getJSONObject("portraits").getJSONArray("right")
-
-            val left =
-                (0 until leftArr.length()).map { i ->
-                    val obj = leftArr.getJSONObject(i)
-                    TemplateFile(obj.getString("file"), obj.getString("label"))
-                }
-            val right =
-                (0 until rightArr.length()).map { i ->
-                    val obj = rightArr.getJSONObject(i)
-                    TemplateFile(obj.getString("file"), obj.getString("label"))
-                }
-
-            TemplateDef(
-                id = json.getString("id"),
-                name = json.getString("name"),
-                wallpaper = json.getString("wallpaper"),
-                left = left,
-                right = right,
-                backgroundZoom = parseBackgroundZoom(json),
-            )
+    /** Loads a template definition from a file-system directory (used for imported templates). */
+    fun loadTemplateFromDir(dir: File): TemplateDef? {
+        val jsonFile = File(dir, "template.json")
+        if (!jsonFile.exists()) return null
+        return try {
+            parseDef(JSONObject(jsonFile.readText()))
         } catch (_: Exception) {
             null
         }
+    }
 
-    /** 从 assets 加载模板定义，解析失败返回 null。 */
+    /** Loads a template definition from assets; returns null when parsing fails. */
     fun loadTemplate(
         context: Context,
         templateId: String,
@@ -80,31 +66,7 @@ object Templates {
                     .open("$TEMPLATES_DIR/$templateId/template.json")
                     .bufferedReader()
                     .use { it.readText() }
-            val json = JSONObject(jsonStr)
-
-            // 解析左右两侧的肖像列表
-            val leftArr = json.getJSONObject("portraits").getJSONArray("left")
-            val rightArr = json.getJSONObject("portraits").getJSONArray("right")
-
-            val left =
-                (0 until leftArr.length()).map { i ->
-                    val obj = leftArr.getJSONObject(i)
-                    TemplateFile(obj.getString("file"), obj.getString("label"))
-                }
-            val right =
-                (0 until rightArr.length()).map { i ->
-                    val obj = rightArr.getJSONObject(i)
-                    TemplateFile(obj.getString("file"), obj.getString("label"))
-                }
-
-            TemplateDef(
-                id = json.getString("id"),
-                name = json.getString("name"),
-                wallpaper = json.getString("wallpaper"),
-                left = left,
-                right = right,
-                backgroundZoom = parseBackgroundZoom(json),
-            )
+            parseDef(JSONObject(jsonStr))
         } catch (_: Exception) {
             null
         }
@@ -121,39 +83,81 @@ object Templates {
     }
 
     /**
-     * Parses the optional background.zoom field; missing values default to 1 (100%).
-     */
-    internal fun parseBackgroundZoom(json: JSONObject): Float =
-        json.optJSONObject("background")?.optDouble("zoom", 1.0)?.toFloat() ?: 1f
-
-    /**
      * Persists the user background zoom into the imported template's own
-     * template.json (every template is imported and writable — there are no
-     * built-in asset templates). Missing values fall back to defaults when
-     * read back. Bumps the template revision in SharedPreferences so a
-     * running wallpaper hot-reloads. Returns false when the template is missing.
+     * template.json. Bumps the template revision so a running wallpaper
+     * hot-reloads. Returns false when the template is missing.
      */
     fun saveBackgroundZoom(
         context: Context,
         templateId: String,
         zoom: Float,
     ): Boolean {
-        val jsonFile =
-            File(
-                File(context.filesDir, RemoteTemplateLoader.TEMPLATE_DIR),
-                "$templateId/template.json",
-            )
-        if (!jsonFile.exists()) return false
-        return try {
-            val json = JSONObject(jsonFile.readText())
-            jsonFile.writeText(withBackgroundZoom(json, zoom).toString())
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putInt(KEY_TEMPLATE_REVISION, prefs.getInt(KEY_TEMPLATE_REVISION, 0) + 1).apply()
-            true
-        } catch (_: Exception) {
-            false
-        }
+        val jsonFile = templateJsonFile(context, templateId) ?: return false
+        return rewriteTemplateJson(context, jsonFile) { json -> withBackgroundZoom(json, zoom) }
     }
+
+    /**
+     * Persists per-portrait user drag offsets (screen-size fractions, keyed by
+     * image file name) into the template's own template.json.
+     *
+     * @param bumpRevision false for silent drag-end saves (the renderer folds
+     *   the offsets in memory; no hot-reload flicker)
+     */
+    fun savePortraitOffsets(
+        context: Context,
+        templateId: String,
+        offsets: Map<String, Pair<Float, Float>>,
+        bumpRevision: Boolean = true,
+    ): Boolean {
+        val jsonFile = templateJsonFile(context, templateId) ?: return false
+        return rewriteTemplateJson(context, jsonFile, bumpRevision) { json -> withPortraitOffsets(json, offsets) }
+    }
+
+    /** Parses the template.json root object; id/name/wallpaper/portraits are required. */
+    internal fun parseDef(json: JSONObject): TemplateDef {
+        val leftArr = json.getJSONObject("portraits").getJSONArray("left")
+        val rightArr = json.getJSONObject("portraits").getJSONArray("right")
+
+        val left = (0 until leftArr.length()).map { parseTemplateFile(leftArr.getJSONObject(it)) }
+        val right = (0 until rightArr.length()).map { parseTemplateFile(rightArr.getJSONObject(it)) }
+
+        return TemplateDef(
+            id = json.getString("id"),
+            name = json.getString("name"),
+            wallpaper = json.getString("wallpaper"),
+            left = left,
+            right = right,
+            backgroundZoom = parseBackgroundZoom(json),
+        )
+    }
+
+    private fun parseTemplateFile(obj: JSONObject): TemplateFile =
+        TemplateFile(
+            file = obj.getString("file"),
+            label = obj.getString("label"),
+            lockedPosition = positionFromJson(obj.optJSONObject("locked")),
+            unlockedPosition = positionFromJson(obj.optJSONObject("unlocked")),
+            offsetX = obj.optJSONObject("offset")?.optDouble("x", 0.0)?.toFloat() ?: 0f,
+            offsetY = obj.optJSONObject("offset")?.optDouble("y", 0.0)?.toFloat() ?: 0f,
+        )
+
+    /** Parses the optional background.zoom field; missing values default to 1 (100%). */
+    internal fun parseBackgroundZoom(json: JSONObject): Float =
+        json.optJSONObject("background")?.optDouble("zoom", 1.0)?.toFloat() ?: 1f
+
+    /** Parses an explicit position object; every field has a default. */
+    internal fun positionFromJson(obj: JSONObject?): PortraitPosition? =
+        if (obj == null) {
+            null
+        } else {
+            PortraitPosition(
+                xRatio = obj.optDouble("x", 0.5).toFloat(),
+                yRatio = obj.optDouble("y", 0.5).toFloat(),
+                rotation = obj.optDouble("rotation", 0.0).toFloat(),
+                scale = obj.optDouble("scale", 1.0).toFloat(),
+                tiltOffset = obj.optDouble("tiltOffset", 1.0).toFloat(),
+            )
+        }
 
     /** Returns [json] with background.zoom set (pure, unit-testable). */
     internal fun withBackgroundZoom(
@@ -166,40 +170,38 @@ object Templates {
         return json
     }
 
-    /** SharedPreferences key bumped on every template.json write; the wallpaper service hot-reloads on change. */
-    const val KEY_TEMPLATE_REVISION = "template_revision"
-
-    private const val PREFS_NAME = "settings_prefs"
-
     /**
-     * 将模板定义转换为渲染用的 TemplateConfig，计算每张肖像的布局位置。
-     *
-     * @param screenWidth Surface 宽度（像素）
-     * @param screenHeight Surface 高度（像素）
+     * Writes per-portrait offsets into the portraits entries, matched by file
+     * name; entries without an offset are left untouched (pure, unit-testable).
      */
+    internal fun withPortraitOffsets(
+        json: JSONObject,
+        offsets: Map<String, Pair<Float, Float>>,
+    ): JSONObject {
+        val portraits = json.optJSONObject("portraits") ?: return json
+        for (side in listOf("left", "right")) {
+            val arr = portraits.optJSONArray(side) ?: continue
+            for (i in 0 until arr.length()) {
+                val entry = arr.optJSONObject(i) ?: continue
+                val offset = offsets[entry.getString("file")] ?: continue
+                entry.put(
+                    "offset",
+                    JSONObject()
+                        .put("x", offset.first.toDouble())
+                        .put("y", offset.second.toDouble()),
+                )
+            }
+        }
+        return json
+    }
+
+    /** Converts a template definition into a renderable TemplateConfig (asset-path variant). */
     fun toTemplateConfig(
         context: Context,
         def: TemplateDef,
-        screenWidth: Float,
-        screenHeight: Float,
     ): TemplateConfig {
-        val allFiles = def.left + def.right
-        val total = allFiles.size
-
         val portraits =
-            allFiles.mapIndexed { i, tf ->
-                val isLeft = i < def.left.size
-                val sideIndex = if (isLeft) i else i - def.left.size
-                val sideCount = if (isLeft) def.left.size else def.right.size
-
-                PortraitConfig(
-                    id = "${def.id}_${tf.file}",
-                    assetPath = "$TEMPLATES_DIR/${def.id}/${tf.file}",
-                    label = tf.label,
-                    lockedPosition = lockedPosition(i, total),
-                    unlockedPosition = unlockedPosition(isLeft, sideIndex, sideCount),
-                )
-            }
+            (def.left + def.right).map { tf -> tf.toPortraitConfig("$TEMPLATES_DIR/${def.id}", def.id, isRemote = false) }
 
         return TemplateConfig(
             id = def.id,
@@ -209,33 +211,13 @@ object Templates {
         )
     }
 
-    /**
-     * 将远程模板定义转换为渲染用的 TemplateConfig（使用文件路径而非 assets 路径）。
-     */
+    /** Converts an imported template definition into a TemplateConfig (file paths instead of asset paths). */
     fun toTemplateConfigFromDir(
         def: TemplateDef,
         templateDir: File,
-        screenWidth: Float,
-        screenHeight: Float,
     ): TemplateConfig {
-        val allFiles = def.left + def.right
-        val total = allFiles.size
-
         val portraits =
-            allFiles.mapIndexed { i, tf ->
-                val isLeft = i < def.left.size
-                val sideIndex = if (isLeft) i else i - def.left.size
-                val sideCount = if (isLeft) def.left.size else def.right.size
-
-                PortraitConfig(
-                    id = "${def.id}_${tf.file}",
-                    assetPath = File(templateDir, tf.file).absolutePath,
-                    label = tf.label,
-                    lockedPosition = lockedPosition(i, total),
-                    unlockedPosition = unlockedPosition(isLeft, sideIndex, sideCount),
-                    isRemote = true,
-                )
-            }
+            (def.left + def.right).map { tf -> tf.toPortraitConfig(templateDir.absolutePath, def.id, isRemote = true) }
 
         return TemplateConfig(
             id = def.id,
@@ -246,59 +228,50 @@ object Templates {
         )
     }
 
-    /**
-     * 计算锁屏状态下的肖像位置：居中网格排列，带随机旋转。
-     *
-     * 列数自动调整（≤8 张用 4 列，>8 张用 5 列），每行居中对齐。
-     */
-    private fun lockedPosition(
-        i: Int,
-        total: Int,
-    ): PortraitPosition {
-        val cols = if (total <= 8) 4 else 5
-        val row = i / cols
-        val col = i % cols
-        val rows = (total + cols - 1) / cols
-        // 最后一行可能不满，计算实际列数以居中
-        val colsInRow = (total - row * cols).coerceAtMost(cols)
-        val rowWidth = (colsInRow - 1) * 0.1f
-        val startX = 0.5f - rowWidth / 2f
-        val centerY = 0.2f + row * (0.6f / (rows - 1).coerceAtLeast(1))
-
-        return PortraitPosition(
-            xRatio = (startX + col * 0.1f).coerceIn(0.05f, 0.95f),
-            yRatio = centerY.coerceIn(0.1f, 0.9f),
-            rotation = (i - total / 2) * 2.5f, // 以中心为对称的旋转角度
-            scale = 0.85f,
-            tiltOffset = 0.6f + (i % 5) * 0.12f, // 交错视差灵敏度
+    private fun TemplateFile.toPortraitConfig(
+        assetDir: String,
+        templateId: String,
+        isRemote: Boolean,
+    ): PortraitConfig =
+        PortraitConfig(
+            id = "${templateId}_$file",
+            file = file,
+            assetPath = "$assetDir/$file",
+            label = label,
+            lockedPosition = lockedPosition,
+            unlockedPosition = unlockedPosition,
+            offsetX = offsetX,
+            offsetY = offsetY,
+            isRemote = isRemote,
         )
+
+    private fun templateJsonFile(
+        context: Context,
+        templateId: String,
+    ): File? {
+        val jsonFile =
+            File(
+                File(context.filesDir, RemoteTemplateLoader.TEMPLATE_DIR),
+                "$templateId/template.json",
+            )
+        return jsonFile.takeIf { it.exists() }
     }
 
-    /**
-     * 计算解锁状态下的肖像位置：分散到屏幕左右两侧，竖向均匀排列。
-     *
-     * @param isLeft 是否属于左侧组
-     * @param sideIndex 在该侧的索引
-     * @param sideCount 该侧总数
-     */
-    private fun unlockedPosition(
-        isLeft: Boolean,
-        sideIndex: Int,
-        sideCount: Int,
-    ): PortraitPosition {
-        val x = if (isLeft) 0.05f else 0.95f
-        val yStart = 0.12f
-        val yEnd = 0.88f
-        val yStep = (yEnd - yStart) / (sideCount - 1).coerceAtLeast(1)
-        val y = yStart + sideIndex * yStep
-
-        return PortraitPosition(
-            xRatio = x,
-            yRatio = y.coerceIn(0.1f, 0.9f),
-            // 左侧微左倾，右侧微右倾
-            rotation = if (isLeft) -6f + sideIndex * 1.5f else 6f - sideIndex * 1.5f,
-            scale = 0.4f,
-            tiltOffset = 0.2f,
-        )
-    }
+    /** Read-modify-write of the template's template.json; bumps the revision by default. */
+    private inline fun rewriteTemplateJson(
+        context: Context,
+        jsonFile: File,
+        bumpRevision: Boolean = true,
+        transform: (JSONObject) -> JSONObject,
+    ): Boolean =
+        try {
+            jsonFile.writeText(transform(JSONObject(jsonFile.readText())).toString())
+            if (bumpRevision) {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putInt(KEY_TEMPLATE_REVISION, prefs.getInt(KEY_TEMPLATE_REVISION, 0) + 1).apply()
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
 }
