@@ -188,6 +188,7 @@ fun SettingsScreen(
     var templateId by remember { mutableStateOf("") }
     var selectedEffect by remember { mutableStateOf(PortraitEffect.NONE) }
     var dragEnabled by remember { mutableStateOf(true) }
+    var swayEnabled by remember { mutableStateOf(true) }
     var templates by remember { mutableStateOf<List<TemplateUi>>(emptyList()) }
     var templatesVersion by remember { mutableIntStateOf(0) }
     var showWallpaperSettings by rememberSaveable { mutableStateOf(false) }
@@ -224,6 +225,7 @@ fun SettingsScreen(
     remember {
         scope.launch {
             repo.dragEnabled.collect { dragEnabled = it }
+            repo.swayEnabled.collect { swayEnabled = it }
         }
     }
     remember {
@@ -548,6 +550,10 @@ fun SettingsScreen(
                                         onEffectChange = { scope.launch { repo.setPortraitEffect(it) } },
                                         dragEnabled = dragEnabled,
                                         onDragChange = { scope.launch { repo.setDragEnabled(it) } },
+                                        swayEnabled = swayEnabled,
+                                        onSwayChange = { scope.launch { repo.setSwayEnabled(it) } },
+                                        swaySetting = { SwayAmplitudeSetting(repo = repo) },
+                                tiltAdjust = { PortraitTiltSetting(repo = repo) },
                                         frameRateOptions = frameRateOptions,
                                         currentFrameRateMode = currentFrameRateMode,
                                         onFrameRateChange = { scope.launch { repo.setFrameRateMode(it) } },
@@ -584,6 +590,10 @@ fun SettingsScreen(
                                 onEffectChange = { scope.launch { repo.setPortraitEffect(it) } },
                                 dragEnabled = dragEnabled,
                                 onDragChange = { scope.launch { repo.setDragEnabled(it) } },
+                                swayEnabled = swayEnabled,
+                                onSwayChange = { scope.launch { repo.setSwayEnabled(it) } },
+                                swaySetting = { SwayAmplitudeSetting(repo = repo) },
+                                tiltAdjust = { PortraitTiltSetting(repo = repo) },
                                 frameRateOptions = frameRateOptions,
                                 currentFrameRateMode = currentFrameRateMode,
                                 onFrameRateChange = { scope.launch { repo.setFrameRateMode(it) } },
@@ -1000,14 +1010,29 @@ private fun TemplateSection(
     }
 }
 
-/** Wallpaper settings group (template-scoped): portrait effect, drag toggle,
- * tilt sensitivity, background zoom and frame rate. */
+/** Wallpaper settings (template-scoped), grouped into labeled cards:
+ * portraits (effect/drag/sway), parallax & background, performance. */
+/** Bold header at the top of a settings group card. */
+@Composable
+private fun SettingsGroupLabel(titleRes: Int) {
+    Text(
+        text = stringResource(titleRes),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp),
+    )
+}
+
 @Composable
 private fun BehaviorSection(
     selectedEffect: PortraitEffect,
     onEffectChange: (PortraitEffect) -> Unit,
     dragEnabled: Boolean,
     onDragChange: (Boolean) -> Unit,
+    swayEnabled: Boolean,
+    onSwayChange: (Boolean) -> Unit,
+    swaySetting: @Composable () -> Unit = {},
+    tiltAdjust: @Composable () -> Unit = {},
     frameRateOptions: List<Pair<String, String>>,
     currentFrameRateMode: String,
     onFrameRateChange: (String) -> Unit,
@@ -1015,10 +1040,11 @@ private fun BehaviorSection(
     backgroundAdjust: @Composable () -> Unit = {},
 ) {
     GroupCard {
+        SettingsGroupLabel(R.string.settings_group_portrait)
         Text(
-            text = stringResource(R.string.portrait_effect),
+            text = stringResource(R.string.effect_title),
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
         )
         EffectSelector(
             selected = selectedEffect,
@@ -1035,8 +1061,27 @@ private fun BehaviorSection(
                 onCheckedChange = onDragChange,
             )
         }
+        SettingsRow(
+            title = stringResource(R.string.sway_enabled_title),
+            iconRes = R.drawable.ic_tune,
+            onClick = { onSwayChange(!swayEnabled) },
+        ) {
+            Switch(
+                checked = swayEnabled,
+                onCheckedChange = onSwayChange,
+            )
+        }
+        Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { swaySetting() }
+        Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { tiltAdjust() }
+    }
+    Spacer(Modifier.height(16.dp))
+    GroupCard {
+        SettingsGroupLabel(R.string.settings_group_scene)
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { tiltSetting() }
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { backgroundAdjust() }
+    }
+    Spacer(Modifier.height(16.dp))
+    GroupCard {
         Box {
             var menuExpanded by remember { mutableStateOf(false) }
             SettingsRow(
