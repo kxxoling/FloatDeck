@@ -97,7 +97,10 @@
     <!-- Tilt parallax sensitivity -->
     <string name="settings_group_portrait">Персонажи</string>
     <string name="settings_group_scene">Параллакс и фон</string>
-    <string name="settings_group_performance">Производительность</string>
+    <string name="effect_title">Эффект</string>
+    <string name="portrait_tilt_symmetric_title">Симметричный наклон</string>
+    <string name="portrait_tilt_title">Наклон персонажей</string>
+    <string name="portrait_tilt_desc">Угол наклона карточек персонажей</string>
     <string name="sway_enabled_title">Покачивание персонажей</string>
     <string name="sway_amplitude_title">Амплитуда покачивания</string>
     <string name="sway_amplitude_desc">Размах вертикального дрейфа персонажей в покое</string>

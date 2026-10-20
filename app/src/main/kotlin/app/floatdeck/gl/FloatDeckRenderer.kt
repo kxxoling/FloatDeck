@@ -174,6 +174,12 @@ class FloatDeckRenderer(
     /** Idle sway amplitude multiplier (0 disables sway); adjustable from settings. */
     var swayAmplitude = 1f
 
+    /** Portrait tilt angle offset in degrees; adjustable from settings. */
+    var portraitTiltDegrees = 0f
+
+    /** Whether left/right portraits tilt symmetrically (false = same direction). */
+    var portraitTiltSymmetric = true
+
     /** User background zoom multiplier (1 = exact cover). Loaded by the wallpaper service from the template's own template.json. */
     @Volatile
     var backgroundZoom = 1f
@@ -573,7 +579,8 @@ class FloatDeckRenderer(
             var drawX = lerp(unlockedEdgeX, lockedCenterX, transitionT) * screenWidthPixels
             var drawY = lerp(unlockedEdgeY, lockedCenterY, transitionT) * screenHeightPixels
             val drawScale = lerp(unlockedScale, lockedScale, transitionT)
-            val drawRotation = lerp(unlockedRotation, lockedRotation, transitionT)
+            val tiltOffset = if (portraitTiltSymmetric && !isOnLeftSide) -portraitTiltDegrees else portraitTiltDegrees
+            val drawRotation = lerp(unlockedRotation, lockedRotation, transitionT) + tiltOffset
 
             // ---- Gyroscope parallax (always active) ----
             // Subtle parallax offsets; portraits shift more than the background

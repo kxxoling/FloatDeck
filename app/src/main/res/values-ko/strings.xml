@@ -97,7 +97,10 @@
     <!-- Tilt parallax sensitivity -->
     <string name="settings_group_portrait">캐릭터</string>
     <string name="settings_group_scene">시차와 배경</string>
-    <string name="settings_group_performance">성능</string>
+    <string name="effect_title">효과</string>
+    <string name="portrait_tilt_symmetric_title">대칭 기울기</string>
+    <string name="portrait_tilt_title">캐릭터 기울기</string>
+    <string name="portrait_tilt_desc">캐릭터 카드의 기울기 각도</string>
     <string name="sway_enabled_title">캐릭터 흔들림</string>
     <string name="sway_amplitude_title">흔들림 진폭</string>
     <string name="sway_amplitude_desc">대기 중 캐릭터가 상하로 떠오르는 폭</string>

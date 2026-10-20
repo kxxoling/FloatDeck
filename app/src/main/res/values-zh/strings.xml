@@ -97,7 +97,10 @@
     <!-- Tilt parallax sensitivity -->
     <string name="settings_group_portrait">立绘</string>
     <string name="settings_group_scene">视差与背景</string>
-    <string name="settings_group_performance">性能</string>
+    <string name="effect_title">特效</string>
+    <string name="portrait_tilt_symmetric_title">对称倾斜</string>
+    <string name="portrait_tilt_title">立绘倾斜</string>
+    <string name="portrait_tilt_desc">立绘卡片的倾斜角度</string>
     <string name="sway_enabled_title">立绘晃动</string>
     <string name="sway_amplitude_title">晃动幅度</string>
     <string name="sway_amplitude_desc">立绘待机时上下浮动的幅度</string>

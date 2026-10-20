@@ -97,7 +97,10 @@
     <!-- Tilt parallax sensitivity -->
     <string name="settings_group_portrait">立ち絵</string>
     <string name="settings_group_scene">視差と背景</string>
-    <string name="settings_group_performance">パフォーマンス</string>
+    <string name="effect_title">エフェクト</string>
+    <string name="portrait_tilt_symmetric_title">対称的な傾き</string>
+    <string name="portrait_tilt_title">立ち絵の傾き</string>
+    <string name="portrait_tilt_desc">立ち絵カードの傾き角度</string>
     <string name="sway_enabled_title">立ち絵の揺れ</string>
     <string name="sway_amplitude_title">揺れの振幅</string>
     <string name="sway_amplitude_desc">待機中の立ち絵が上下に浮遊する幅</string>

@@ -31,6 +31,8 @@ private const val KEY_FRAME_RATE_MODE = "frame_rate_mode"
 private const val KEY_TILT_SENSITIVITY = "tilt_sensitivity"
 private const val KEY_SWAY_ENABLED = "sway_enabled"
 private const val KEY_SWAY_AMPLITUDE = "sway_amplitude"
+private const val KEY_PORTRAIT_TILT = "portrait_tilt"
+private const val KEY_PORTRAIT_TILT_SYMMETRIC = "portrait_tilt_symmetric"
 
 /**
  * FloatDeck 动态壁纸服务入口。
@@ -68,6 +70,11 @@ class FloatDeckWallpaperService : WallpaperService() {
                     val value = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .getFloat(KEY_TILT_SENSITIVITY, 1f)
                     glThread?.updateTiltSensitivity(value)
+                }
+                KEY_PORTRAIT_TILT, KEY_PORTRAIT_TILT_SYMMETRIC -> {
+                    val degrees = prefs.getFloat(KEY_PORTRAIT_TILT, 0f)
+                    val symmetric = prefs.getBoolean(KEY_PORTRAIT_TILT_SYMMETRIC, true)
+                    glThread?.updatePortraitTilt(degrees, symmetric)
                 }
                 KEY_SWAY_ENABLED, KEY_SWAY_AMPLITUDE -> {
                     val amplitude =
@@ -382,6 +389,15 @@ class GLWallpaperThread(
         renderer.swayAmplitude = value
     }
 
+    /**
+     * Applies the portrait tilt angle offset and symmetry mode from settings.
+     * No template reload needed: the renderer reads the fields every frame.
+     */
+    fun updatePortraitTilt(degrees: Float, symmetric: Boolean) {
+        renderer.portraitTiltDegrees = degrees
+        renderer.portraitTiltSymmetric = symmetric
+    }
+
     override fun run() {
         if (!initEGL()) {
             Log.e(TAG, "EGL initialization failed")
@@ -641,6 +657,8 @@ class GLWallpaperThread(
         preferredFrameRateMode = prefs.getString(KEY_FRAME_RATE_MODE, "auto") ?: "auto"
         renderer.parallaxSensitivity = prefs.getFloat(KEY_TILT_SENSITIVITY, 1f)
         renderer.swayAmplitude = if (prefs.getBoolean(KEY_SWAY_ENABLED, true)) prefs.getFloat(KEY_SWAY_AMPLITUDE, 1f) else 0f
+        renderer.portraitTiltDegrees = prefs.getFloat(KEY_PORTRAIT_TILT, 0f)
+        renderer.portraitTiltSymmetric = prefs.getBoolean(KEY_PORTRAIT_TILT_SYMMETRIC, true)
 
         // 尝试从远程模板加载，再从 assets 加载
         val remoteLoader = RemoteTemplateLoader(context)

@@ -553,6 +553,7 @@ fun SettingsScreen(
                                         swayEnabled = swayEnabled,
                                         onSwayChange = { scope.launch { repo.setSwayEnabled(it) } },
                                         swaySetting = { SwayAmplitudeSetting(repo = repo) },
+                                tiltAdjust = { PortraitTiltSetting(repo = repo) },
                                         frameRateOptions = frameRateOptions,
                                         currentFrameRateMode = currentFrameRateMode,
                                         onFrameRateChange = { scope.launch { repo.setFrameRateMode(it) } },
@@ -592,6 +593,7 @@ fun SettingsScreen(
                                 swayEnabled = swayEnabled,
                                 onSwayChange = { scope.launch { repo.setSwayEnabled(it) } },
                                 swaySetting = { SwayAmplitudeSetting(repo = repo) },
+                                tiltAdjust = { PortraitTiltSetting(repo = repo) },
                                 frameRateOptions = frameRateOptions,
                                 currentFrameRateMode = currentFrameRateMode,
                                 onFrameRateChange = { scope.launch { repo.setFrameRateMode(it) } },
@@ -1030,6 +1032,7 @@ private fun BehaviorSection(
     swayEnabled: Boolean,
     onSwayChange: (Boolean) -> Unit,
     swaySetting: @Composable () -> Unit = {},
+    tiltAdjust: @Composable () -> Unit = {},
     frameRateOptions: List<Pair<String, String>>,
     currentFrameRateMode: String,
     onFrameRateChange: (String) -> Unit,
@@ -1039,7 +1042,7 @@ private fun BehaviorSection(
     GroupCard {
         SettingsGroupLabel(R.string.settings_group_portrait)
         Text(
-            text = stringResource(R.string.portrait_effect),
+            text = stringResource(R.string.effect_title),
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
         )
@@ -1069,6 +1072,7 @@ private fun BehaviorSection(
             )
         }
         Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { swaySetting() }
+        Box(Modifier.padding(start = 18.dp, end = 18.dp, top = 2.dp, bottom = 8.dp)) { tiltAdjust() }
     }
     Spacer(Modifier.height(16.dp))
     GroupCard {
@@ -1078,7 +1082,6 @@ private fun BehaviorSection(
     }
     Spacer(Modifier.height(16.dp))
     GroupCard {
-        SettingsGroupLabel(R.string.settings_group_performance)
         Box {
             var menuExpanded by remember { mutableStateOf(false) }
             SettingsRow(

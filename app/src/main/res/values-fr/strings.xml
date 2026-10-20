@@ -97,7 +97,10 @@
     <!-- Tilt parallax sensitivity -->
     <string name="settings_group_portrait">Portraits</string>
     <string name="settings_group_scene">Parallaxe et arrière-plan</string>
-    <string name="settings_group_performance">Performances</string>
+    <string name="effect_title">Effet</string>
+    <string name="portrait_tilt_symmetric_title">Inclinaison symétrique</string>
+    <string name="portrait_tilt_title">Inclinaison des portraits</string>
+    <string name="portrait_tilt_desc">Angle d\'inclinaison des cartes de portrait</string>
     <string name="sway_enabled_title">Balancement des portraits</string>
     <string name="sway_amplitude_title">Amplitude du balancement</string>
     <string name="sway_amplitude_desc">Amplitude du mouvement vertical des portraits au repos</string>
