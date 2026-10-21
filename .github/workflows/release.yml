@@ -50,11 +50,22 @@ jobs:
             echo "tag=${{ inputs.version }}" >> $GITHUB_OUTPUT
           fi
 
+      # Artifacts are named FloatDeck-<tag> so regular, pre-release and
+      # manually-dispatched tags all carry their identity in the filename.
+      - name: Name artifacts
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          APK="FloatDeck-${TAG}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/${APK}"
+          zip -j "app/build/outputs/apk/release/${APK}.zip" "app/build/outputs/apk/release/${APK}"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
-          files: app/build/outputs/apk/release/*.apk
+          files: |
+            app/build/outputs/apk/release/FloatDeck-${{ steps.tag.outputs.tag }}.apk
+            app/build/outputs/apk/release/FloatDeck-${{ steps.tag.outputs.tag }}.apk.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
