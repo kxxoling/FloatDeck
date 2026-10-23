@@ -1,0 +1,5 @@
+• About-the-project dialog with GitHub star and follow links.
+• Template delete moved into the detail page and a long-press menu, with confirmation.
+• Portrait sway can be turned off and its amplitude adjusted.
+• Portrait tilt angle and left/right symmetry are adjustable.
+• Wallpaper settings grouped into labeled cards.
