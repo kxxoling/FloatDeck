@@ -50,6 +50,8 @@ fun PortraitTiltSetting(
 
     LaunchedEffect(repo) {
         repo.portraitTilt.collect { degrees = it }
+    }
+    LaunchedEffect(repo) {
         repo.portraitTiltSymmetric.collect { symmetric = it }
     }
 

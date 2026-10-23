@@ -222,6 +222,10 @@ fun SettingsScreen(
     remember {
         scope.launch {
             repo.dragEnabled.collect { dragEnabled = it }
+        }
+    }
+    remember {
+        scope.launch {
             repo.swayEnabled.collect { swayEnabled = it }
         }
     }
