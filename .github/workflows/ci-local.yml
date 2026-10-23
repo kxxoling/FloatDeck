@@ -28,8 +28,17 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      # Dev builds carry the app name, current versionName and commit so they
+      # are distinguishable from release artifacts.
+      - name: Name dev APK
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          SHA=${GITHUB_SHA::7}
+          mv app/build/outputs/apk/debug/app-debug.apk \
+            "app/build/outputs/apk/debug/FloatDeck-dev-${VERSION}-g${SHA}.apk"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: FloatDeck-dev-${VERSION}-g${SHA}
+          path: app/build/outputs/apk/debug/FloatDeck-dev-*.apk
