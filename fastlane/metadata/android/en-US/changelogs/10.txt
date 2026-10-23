@@ -1,0 +1,2 @@
+• Fixed the template context menu blurring the whole screen on Android 12+.
+• Fixed the portrait sway toggle and tilt symmetry switch not responding.
