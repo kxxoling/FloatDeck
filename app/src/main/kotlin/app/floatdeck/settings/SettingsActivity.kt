@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.hardware.display.DisplayManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
 import android.widget.Toast
@@ -77,7 +76,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -200,7 +198,6 @@ fun SettingsScreen(
     var showLocalImport by rememberSaveable { mutableStateOf(false) }
     var showCrashDialog by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<TemplateUi?>(null) }
-    var contextMenuActive by remember { mutableStateOf(false) }
     var crashLogCount by remember { mutableStateOf(CrashLogCollector.getLogFiles().size) }
     var updateChecking by remember { mutableStateOf(false) }
     var updateAvailable by remember { mutableStateOf<app.floatdeck.data.ReleaseInfo?>(null) }
@@ -453,13 +450,7 @@ fun SettingsScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    // Frosted-glass backdrop for the gallery context menu; the
-                    // blur modifier is a no-op below API 31, where the menu
-                    // falls back to plain translucency.
-                    .blur(
-                        if (contextMenuActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 14.dp else 0.dp,
-                    ),
+                    .padding(padding),
         ) {
             // Two-pane on tablets (>= 840dp): left = header + template domain,
             // right = template-scoped wallpaper settings (after selection).
@@ -480,7 +471,6 @@ fun SettingsScreen(
                             grid = true,
                             onSelect = { scope.launch { repo.setTemplate(it) } },
                             onDelete = ::deleteTemplate,
-                            onMenuActiveChange = { contextMenuActive = it },
                         )
                         SectionLabel(stringResource(R.string.import_section_title))
                         ImportSection(
@@ -625,7 +615,6 @@ fun SettingsScreen(
                                         grid = availableWidth >= 600.dp,
                                         onSelect = { scope.launch { repo.setTemplate(it) } },
                                         onDelete = ::deleteTemplate,
-                                        onMenuActiveChange = { contextMenuActive = it },
                                     )
                                 }
                                 item {
@@ -952,7 +941,6 @@ private fun TemplateSection(
     grid: Boolean,
     onSelect: (String) -> Unit,
     onDelete: (TemplateUi) -> Unit,
-    onMenuActiveChange: (Boolean) -> Unit = {},
 ) {
     if (templates.isEmpty()) {
         Text(
@@ -977,7 +965,6 @@ private fun TemplateSection(
                     onDelete = if (item.isRemote) ({ onDelete(item) }) else null,
                     imageHeight = 150.dp,
                     useBottomSheet = !grid,
-                    onMenuActiveChange = onMenuActiveChange,
                     modifier = Modifier.width(172.dp),
                 )
             }
@@ -997,7 +984,6 @@ private fun TemplateSection(
                             onDelete = if (item.isRemote) ({ onDelete(item) }) else null,
                             imageHeight = 170.dp,
                             useBottomSheet = !grid,
-                            onMenuActiveChange = onMenuActiveChange,
                             modifier = Modifier.weight(1f),
                         )
                     }
