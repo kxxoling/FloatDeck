@@ -1,6 +1,5 @@
 package app.floatdeck.settings
 
-import android.os.Build
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -232,7 +231,6 @@ fun TemplateCard(
     modifier: Modifier = Modifier,
     useBottomSheet: Boolean = false,
     onDelete: (() -> Unit)? = null,
-    onMenuActiveChange: (Boolean) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var sheetVisible by remember { mutableStateOf(false) }
@@ -262,7 +260,6 @@ fun TemplateCard(
                                     sheetVisible = true
                                 } else {
                                     menuExpanded = true
-                                    onMenuActiveChange(true)
                                 }
                             }
                         } else {
@@ -352,26 +349,20 @@ fun TemplateCard(
             } else {
                 DropdownMenu(
                     expanded = menuExpanded,
-                    onDismissRequest = {
-                        menuExpanded = false
-                        onMenuActiveChange(false)
-                    },
+                    onDismissRequest = { menuExpanded = false },
                     // The popup anchors below the card by default; lift it fully
                     // above the card so the long-pressing finger never covers it.
                     offset = DpOffset(0.dp, -(imageHeight + 70.dp)),
                     shape = RoundedCornerShape(20.dp),
-                    // Translucent, slightly darkened container; where the OS
-                    // supports it the content behind is blurred as well
-                    // (see the caller's blur modifier), which the lower alpha
-                    // lets shine through.
+                    // Translucent, slightly darkened container. No backdrop
+                    // blur: blurring the whole app content also hides the
+                    // template card the menu acts on.
                     containerColor =
                         lerp(
                             MaterialTheme.colorScheme.surfaceContainerHigh,
                             Color.Black,
                             0.04f,
-                        ).copy(
-                            alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.8f else 0.9f,
-                        ),
+                        ).copy(alpha = 0.9f),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
                 ) {
@@ -391,7 +382,6 @@ fun TemplateCard(
                         },
                         onClick = {
                             menuExpanded = false
-                            onMenuActiveChange(false)
                             onDelete?.invoke()
                         },
                     )
