@@ -6,4 +6,4 @@ Features:
 • Customizable template layouts
 • Lock screen support with smooth transitions
 • Inertia-based physics for natural movement
-• Completely open source, no trackers, no internet permission
+• Completely open source, no trackers (internet access is used only for user-initiated template downloads and update checks; no data is collected)
